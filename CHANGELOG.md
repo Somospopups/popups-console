@@ -107,3 +107,6 @@
 - Cada acción (💳 +30 días, 🔒 Bloquear, 🔓 Desbloquear, 🗑 Baja, cambio de plan) sincroniza la nube al instante. Si no hay conexión, avisa y los cambios quedan solo locales.
 - **En la nube no se elimina para siempre**: las tiendas cloud ya no muestran "Eliminar definitiva" (se usa Baja, que archiva y permite reactivar). El límite real de productos del plan lo aplica la base.
 - Demo migrada a la nube: **@juan** (Panadería La Espiga, plan 50) y **@mariela** (Boutique Mariela, plan 25) con catálogos propios. Sus claves demo: `juan-demo` / `mariela-demo`.
+
+## v0.16.0 · 2026-09-07
+- **Medidor de la nube en el panel**: barra de uso de la base de Supabase (límite 500 MB del plan Free) con total de tiendas y productos en la nube. Se pone **verde → ámbar → rojo** a medida que se acerca al límite, para saber cuándo conviene pasar a plan pago. (Requiere correr el esquema SQL actualizado una vez.)

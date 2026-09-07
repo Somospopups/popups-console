@@ -945,11 +945,38 @@ function seedDB() {
       var p = $('clientsPanel');
       if (!p) return;
       p.innerHTML = clientesHTML(a);
+      clUsagePaint();
       bindClientesPanel(a);
     }
     if (a.slug !== 'mi-tienda') { paint(); return; }
     clCloudPull().then(paint);
   }
+  function clFmtMB(b) { var mb = (Number(b) || 0) / 1048576; return mb >= 1 ? (mb < 100 ? mb.toFixed(1).replace('.', ',') : Math.round(mb) + '') + ' MB' : Math.round(mb * 1024) + ' KB'; }
+  function clUsagePaint() {
+    var box = $('mtUsageBox');
+    if (!box) return;
+    box.innerHTML = '<div style="padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px"><b style="font-size:12.5px;color:var(--ink)">☁ Medidor de la nube</b><span id="mtUsageVal" style="font-size:11.5px;color:var(--mut)">Midiendo…</span></div>' +
+      '<div style="height:9px;border-radius:999px;background:rgba(242,239,231,.08);border:1px solid var(--line);overflow:hidden"><div id="mtUsageFill" style="height:100%;width:0%;background:#7ccb9a;border-radius:999px;transition:width .4s"></div></div>' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px"><span id="mtUsageMeta" style="font-size:10.5px;color:var(--mut)"></span><span style="font-size:10.5px;color:var(--mut)">límite 500 MB (plan Free)</span></div></div>';
+    var val = $('mtUsageVal'), fill = $('mtUsageFill'), meta = $('mtUsageMeta');
+    fetch('https://zfnlcfnutnuatrhgbbci.supabase.co/rest/v1/rpc/api_usage', {
+      method: 'POST',
+      headers: { 'apikey': 'sb_publishable_OXtOk77qP8Q1RX6IOOPj8A_qAqLEe_-',
+                 'Authorization': 'Bearer sb_publishable_OXtOk77qP8Q1RX6IOOPj8A_qAqLEe_-',
+                 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_pin: clPin() })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || d.ok !== true) { if (val) val.textContent = 'Sin conexión'; return; }
+      var pct = Math.min(100, ((Number(d.db_bytes) || 0) / (Number(d.db_limit_bytes) || 524288000)) * 100);
+      var color = pct >= 85 ? '#e06c5a' : (pct >= 65 ? '#d9a441' : '#7ccb9a');
+      if (fill) { fill.style.width = Math.max(2, pct) + '%'; fill.style.background = color; }
+      if (val) { val.textContent = clFmtMB(d.db_bytes) + ' de 500 MB · ' + pct.toFixed(1).replace('.', ',') + '%'; val.style.color = color; }
+      if (meta) meta.textContent = Number(d.stores) + ' tiendas · ' + Number(d.products) + ' productos en la nube';
+    }).catch(function () { if (val) val.textContent = 'Sin conexión'; });
+  }
+
+
 function clPlanSelect(c) {
     var opts = '';
     for (var i = 0; i < MT_PLANS.length; i++) {
@@ -972,7 +999,8 @@ function clPlanSelect(c) {
     var cloudLine = (clCurrentSlug === 'mi-tienda') ? '<div style="margin:0 0 10px;font-size:12px">' + (clCloudOk
         ? '<span style="color:#7ccb9a">☁ Nube conectada</span> · el estado acá bloquea y desbloquea la tienda en vivo'
         : '<span style="color:#e3b36a">⚠ Sin conexión a la nube: los cambios quedan SOLO locales (la tienda no se actualiza)</span>') + '</div>' : '';
-    var stats = cloudLine + '<div class="cl-stats">' +
+    var usageBox = (clCurrentSlug === 'mi-tienda') ? '<div id="mtUsageBox" style="margin:0 0 12px"></div>' : '';
+    var stats = cloudLine + usageBox + '<div class="cl-stats">' +
       '<div class="cl-stat"><b>' + tot + '</b><span>Tiendas</span></div>' +
       '<div class="cl-stat"><b style="color:#7ccb9a">' + act + '</b><span>Activas</span></div>' +
       '<div class="cl-stat"><b style="color:#e08a5f">' + sus + '</b><span>Suspendidas</span></div>' +
@@ -1033,6 +1061,7 @@ function clPlanSelect(c) {
     var a = null;
     for (var i = 0; i < state.apps.length; i++) { if (state.apps[i].slug === clCurrentSlug) { a = state.apps[i]; break; } }
     if (!a) return;
+    clUsagePaint();
     p.innerHTML = clientesHTML(a);
     bindClientesPanel(a);
   }
