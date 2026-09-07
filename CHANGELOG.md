@@ -49,3 +49,6 @@
 
 ## v0.8.1 · 2026-09-07
 - La verificación automática de versiones corre siempre al recargar la consola (además de cada 10 min en la pestaña Apps).
+
+## v0.9.0 · 2026-09-07
+- **La Administración de cada app se ejecuta dentro del mismo popup de la ficha**: el popup no se cierra; su contenido pasa a Administración (APPI nativo, o el panel de la app en iframe) con el botón "‹ Volver a la ficha". Los formularios del panel ya no cierran el popup de fondo.

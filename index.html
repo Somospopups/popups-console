@@ -607,7 +607,7 @@
     }
     if (act === 'release') { $('relSub').textContent = curApp.name + ' · última: v' + (curApp.version || '—'); $('relError').textContent = ''; $('releaseForm').reset(); closeOv(); openOv('modalRelease'); }
     if (act === 'note') { $('noteSub').textContent = curApp.name; $('noteError').textContent = ''; $('noteForm').reset(); closeOv(); openOv('modalNote'); }
-    if (act === 'admin') { closeOv(); openAdmin(curApp.slug); }
+    if (act === 'admin') { openAdmin(curApp.slug); }
     if (act === 'pause') changeStatus('pausada');
     if (act === 'reactivate') changeStatus('en_desarrollo');
     if (act === 'delete') {
@@ -737,7 +737,7 @@ function appiWa(num, msg) {
   window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(msg), '_blank');
 }
 /* ---------- diálogo genérico ---------- */
-function appiDlgCancel() { closeOv(); }
+function appiDlgCancel() { var d = $('appiDlg'); if (d) d.classList.remove('open'); }
 function appiDlgOpen(title, inner, okLabel, danger, onOk) {
   var h = '<div style="display:flex;align-items:center;gap:8px;margin:2px 26px 12px 0"><b style="font-size:16px;color:var(--ink)">' + esc(title) + '</b></div>';
   h += '<div id="appiDlgInner">' + inner + '</div>';
@@ -745,7 +745,7 @@ function appiDlgOpen(title, inner, okLabel, danger, onOk) {
   h += '<button class="btn small" id="appiDlgOk" style="' + (danger ? 'background:#ff6b5e;border-color:#ff6b5e;color:#220a08' : 'background:var(--ink);color:#10130e;border-color:var(--ink)') + '" onclick="appiDlgOkClick()">' + esc(okLabel || 'Aceptar') + '</button></div>';
   $('appiDlgBody').innerHTML = h;
   window._appiDlgOk = onOk; window._appiDlgDanger = !!danger;
-  openOv('appiDlg');
+  var _d = $('appiDlg'); if (_d) _d.classList.add('open');
 }
 function appiDlgOkClick() {
   var okFn = window._appiDlgOk;
@@ -1156,39 +1156,37 @@ async function appiConnect(f) {
   window.appiWa = appiWa;
   window.openAppi = openAppi;
 
-  /* ---------- ADMINISTRACIÓN por app: abre el panel de manejo ---------- */
+  /* ---------- ADMINISTRACIÓN por app: se ejecuta DENTRO del popup de la ficha ---------- */
   function openAdmin(slug) {
-    var old = $('adminBox'); if (old) old.remove();
-    var a = null, i;
-    for (i = 0; i < state.apps.length; i++) { if (state.apps[i].slug === slug) { a = state.apps[i]; break; } }
-    if (!a && curApp && curApp.slug === slug) a = curApp;
+    var a = (curApp && curApp.slug === slug) ? curApp : null;
+    if (!a) {
+      for (var i = 0; i < state.apps.length; i++) { if (state.apps[i].slug === slug) { a = state.apps[i]; break; } }
+    }
     if (!a) { toast('No se encontró la app.'); return; }
-    var el = document.createElement('div');
-    el.id = 'adminBox'; el.className = 'ovx';
-    var top = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:2px 2px 12px">' +
-      '<span style="width:12px;height:12px;border-radius:50%;background:' + esc((a.brand && a.brand.color) || '#b7e078') + '"></span>' +
-      '<b style="font-size:16px;color:var(--ink)">' + esc(a.name) + '</b>' +
-      '<span style="color:var(--mut);font-size:12px">' + esc(a.slug) + '</span>' +
-      '<span style="flex:1"></span>';
-    if (slug !== 'appi') {
-      var u = (a.urls && (a.urls.admin || a.urls.site)) || '';
-      if (u) top += '<a class="btn small" href="' + esc(u) + '" target="_blank" rel="noopener">Abrir en pestaña ↗</a>';
-    }
-    top += '<button class="btn small" data-aclose>✕ Cerrar</button></div>';
+    var body = $('detailBody');
+    if (!body) { toast('Abrí primero la ficha de la app.'); return; }
+    var head = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">' +
+      '<b style="font-size:16px;color:var(--ink)">◈ Administración · ' + esc(a.name) + '</b>' +
+      '<span class="muted">' + esc(a.slug) + '</span><span style="flex:1"></span>' +
+      '<button class="btn small" data-aback>‹ Volver a la ficha</button></div>';
     var content = '';
-    if (slug === 'appi') content = '<div id="view-appi"></div>';
-    else {
-      var ur = (a.urls && (a.urls.admin || a.urls.site)) || '';
-      if (ur) content = '<iframe class="ext" src="' + esc(ur) + '" title="Panel de ' + esc(a.name) + '"></iframe>';
-      else content = '<div class="aempty" style="margin:20px 0">Esta app todavía no tiene panel de administración.<br><span class="muted">Cuando lo tenga (o si definís su URL de admin en “Editar ficha”), se abre acá.</span></div>';
+    if (a.slug === 'appi') {
+      content = '<div id="view-appi"></div>';
+    } else {
+      var u = (a.urls && (a.urls.admin || a.urls.site)) || '';
+      if (u) content = '<p class="muted" style="margin:0 0 10px">Este es el panel propio de la app (se muestra acá adentro). <a href="' + esc(u) + '" target="_blank" rel="noopener" style="color:var(--acc)">Abrir en pestaña ↗</a></p><iframe class="ext" src="' + esc(u) + '" title="Panel de ' + esc(a.name) + '"></iframe>';
+      else content = '<p class="muted">Esta app todavía no tiene panel de administración. Si definís su URL de admin en “Editar ficha”, se va a abrir acá.</p>';
     }
-    el.innerHTML = '<div class="sheetx">' + top + '<div class="scroll">' + content + '</div></div>';
-    document.body.appendChild(el);
-    el.addEventListener('click', function (e) { if (e.target === el) { el.remove(); if (slug === 'appi') appiLogout(); } });
-    el.querySelector('[data-aclose]').addEventListener('click', function () { el.remove(); if (slug === 'appi') appiLogout(); });
-    if (slug === 'appi') openAppi();
+    body.innerHTML = head + content;
+    var bb = body.querySelector('[data-aback]');
+    if (bb) bb.addEventListener('click', leaveAdmin);
+    if (a.slug === 'appi') openAppi();
   }
-
+  function leaveAdmin() {
+    if (curApp) {
+      api('/api/apps/' + curApp.slug).then(function (d) { curApp = d.app; renderDetail(); }).catch(function () { renderDetail(); });
+    } else renderDetail();
+  }
   /* ---------- DETECCIÓN AUTOMÁTICA DE VERSIONES ----------
      Cada app declara su ficha popups.app.json en su repo (estándar POPUPS).
      Al abrir la consola (y al entrar a Apps) se comparan las versiones y,
