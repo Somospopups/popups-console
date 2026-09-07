@@ -46,3 +46,6 @@
 ## v0.8.0 · 2026-09-07
 - **Acciones de la ficha alineadas en grilla pareja** (Administración, Editar, Registrar versión, Nota, Pausar y Eliminar quedan parejos; se elimina el desfase de "Eliminar").
 - **Registro de versiones automático**: la consola lee el `popups.app.json` (estándar) de cada app en su repo de GitHub y, si detecta una versión nueva, la registra sola en Versiones (con aviso ⚡). Verifica al entrar a la consola y al abrir la pestaña Apps (cada 10 min como máximo). El botón "+ Registrar versión" queda como registro manual.
+
+## v0.8.1 · 2026-09-07
+- La verificación automática de versiones corre siempre al recargar la consola (además de cada 10 min en la pestaña Apps).

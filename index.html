@@ -1228,7 +1228,7 @@ async function appiConnect(f) {
       }
     } catch (e) {}
   }
-  setTimeout(function () { try { if (state && state.token) autoDetectVersions(false).catch(function () {}); } catch (e) {} }, 4000);
+  setTimeout(function () { try { if (state && state.token) autoDetectVersions(true).catch(function () {}); } catch (e) {} }, 4000);
   var _abtn = document.querySelector('nav.tabs [data-tab="apps"]');
   if (_abtn) _abtn.addEventListener('click', function () { try { autoDetectVersions(false).catch(function () {}); } catch (e) {} });
 })();
