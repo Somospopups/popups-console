@@ -71,3 +71,11 @@
   - `none` → aviso de configurarlo (nunca más un botón muerto).
   - `auto` (por defecto) → la consola deduce sola: APPI navega · Mi-Tienda abre `#admin` · si hay URL de panel la muestra · si no, aviso.
 - Formulario "Nueva app / Editar ficha" con selector de administración. Una app nueva **nace conectada** con solo declarar cómo se administra.
+
+## v0.13.0 · 2026-09-07
+- **Panel POPUPS de clientes (productos vendidos a dueños)** — modo `clientes` (ej. Mi-Tienda):
+  - El botón "◈ ADMINISTRACIÓN" de Mi-Tienda abre el panel de POPUPS: tiendas vendidas con su dueño, estado (activa/suspendida), vencimiento y link propio.
+  - Acciones: **＋ Vender tienda nueva** (crea el link del dueño), **💳 +30 días** (registrar pago), **🔒 Bloquear / 🔓 Desbloquear** (impago), **🗑 Baja** (el link deja de funcionar).
+  - Vencimiento automático: si una tienda vence y no paga, pasa sola a suspendida.
+- **Puerta en Mi-Tienda v0.2.0**: cada dueño entra con su link `?tienda=juan` y, si está bloqueada, la página entera muestra el cartel de suspendida (no vende ni edita). Al pagar, vuelve sola.
+- El panel del dueño (editar su tienda) queda adentro de Mi-Tienda, con su link; POPUPS ya no necesita entrar ahí.

@@ -230,6 +230,7 @@
             <option value="direct">Navega a la app (panel propio grande, ej. APPI)</option>
             <option value="embed">Panel dentro del popup (URL del panel, ej. Mi-Tienda #admin)</option>
             <option value="none">Todavía no tiene panel</option>
+            <option value="clientes">Panel POPUPS de clientes (producto vendido a dueños, ej. Mi-Tienda)</option>
           </select>
         </div>
       </div>
@@ -287,6 +288,23 @@
 
 <div class="toastx" id="toast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#10130e;padding:11px 18px;border-radius:999px;font-size:13px;z-index:99;display:none;font-weight:650;max-width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.4)"></div>
 
+<!-- MODAL vender tienda nueva (productos con dueños) -->
+  <div class="ov" id="modalClient">
+    <div class="sheet" style="max-width:440px">
+      <button class="x" data-close>×</button>
+      <h2 id="clModalTitle">Vender tienda nueva</h2>
+      <p class="sub" id="clModalSub">Se le crea al dueño su link para ver y editar su tienda.</p>
+      <form id="clientForm">
+        <div class="field"><label>Nombre del dueño *</label><input name="clName" maxlength="60" required placeholder="Ej. Juan Pérez"></div>
+        <div class="field"><label>Contacto (WhatsApp o email)</label><input name="clContact" maxlength="120" placeholder="+54 9 11 ..."></div>
+        <div class="row" style="justify-content:flex-end;align-items:center">
+          <span class="err-txt" id="clientFormError"></span><span style="flex:1"></span>
+          <button type="button" class="btn ghost small" data-close>Cancelar</button>
+          <button type="submit" class="btn small" id="clientFormSubmit" style="background:var(--ink);color:#10130e;border-color:var(--ink)">Vender</button>
+        </div>
+      </form>
+    </div>
+  </div>
 <script>
 
 (function () {
@@ -310,7 +328,15 @@
   var PIN_EQUIPO = '2468';
   var LOCAL_TOKEN = 'popups-local-token';
   var MEM = null;
-  function seedDB() {
+  function seedClientsMT() {
+    var h = new Date();
+    function d(n) { var x = new Date(h.getTime()); x.setDate(x.getDate() + n); var p = function (v) { return (v < 10 ? '0' : '') + v; }; return x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate()); }
+    return [
+      { id: 'juan', owner: 'Juan Pérez', contact: '', paidUntil: d(18), status: 'activa', note: '', createdAt: new Date().toISOString() },
+      { id: 'mariela', owner: 'Mariela Gómez', contact: '', paidUntil: d(8), status: 'activa', note: '', createdAt: new Date().toISOString() }
+    ];
+  }
+function seedDB() {
     var now = new Date().toISOString();
     var app = function (f) {
       return {
@@ -337,7 +363,7 @@
   }
   function getDB() {
     if (MEM) return MEM;
-    try { var raw = localStorage.getItem('popups_console_v1'); if (raw) { var d = JSON.parse(raw); if (d && d.apps) { MEM = d; return d; } } } catch (e) {}
+    try { var raw = localStorage.getItem('popups_console_v1'); if (raw) { var d = JSON.parse(raw); if (d && d.apps) { if (!d.clients) d.clients = {}; if (!d.clients['mi-tienda']) d.clients['mi-tienda'] = seedClientsMT(); MEM = d; return d; } } } catch (e) {}
     MEM = seedDB(); return MEM;
   }
   function setDB(d) { MEM = d; try { localStorage.setItem('popups_console_v1', JSON.stringify(d)); } catch (e) {} }
@@ -431,6 +457,48 @@
         var member = { id: 'u' + Date.now(), email: em, name: clean(body.name, 120), role: ['owner', 'admin', 'dev', 'support'].indexOf(body.role) !== -1 ? body.role : 'dev', active: true, createdAt: new Date().toISOString() };
         d.members.push(member); act(d, 'equipo', 'miembro.agregado', { email: em, role: member.role }); setDB(d);
         return ok({ member: member });
+      }
+// clientes de productos vendidos (panel POPUPS)
+      var mCl = path.match(/^\/api\/apps\/([^/]+)\/clients(?:(\/[^/]+))?$/);
+      if (mCl) {
+        var csApp = d.apps.find(function (x) { return x.slug === mCl[1]; });
+        if (!csApp) return fail(404, 'App no encontrada.');
+        if (!d.clients) d.clients = {};
+        if (!d.clients[mCl[1]]) d.clients[mCl[1]] = [];
+        var arrC = d.clients[mCl[1]];
+        var hoyIso = clTodayIso ? clTodayIso() : new Date().toISOString().slice(0, 10);
+        var changedAuto = false;
+        arrC.forEach(function (c) { if (c.status === 'activa' && c.paidUntil < hoyIso) { c.status = 'suspendida'; c._auto = 1; changedAuto = true; } });
+        if (changedAuto) setDB(d);
+        if (method === 'GET') {
+          if (mCl[2]) { var oneC = arrC.find(function (c) { return c.id === mCl[2].slice(1); }); if (!oneC) return fail(404, 'Cliente no encontrado.'); return ok({ client: oneC }); }
+          return ok({ clients: arrC.slice() });
+        }
+        if (method === 'POST' && !mCl[2]) {
+          var ownerC = clean(body.owner, 80);
+          if (!ownerC) return fail(400, 'Poné el nombre del dueño.');
+          var baseC = String(ownerC).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+          var idC = baseC || 'tienda' + Date.now(), kC = 2, idF = idC;
+          while (arrC.some(function (c) { return c.id === idF; })) { idF = idC + '-' + kC; kC++; }
+          var dC = new Date(); dC.setDate(dC.getDate() + 30);
+          var qC = function (v) { return (v < 10 ? '0' : '') + v; };
+          var nc = { id: idF, owner: ownerC, contact: clean(body.contact, 120), paidUntil: dC.getFullYear() + '-' + qC(dC.getMonth() + 1) + '-' + qC(dC.getDate()), status: 'activa', note: '', createdAt: new Date().toISOString() };
+          arrC.push(nc); act(d, 'equipo', 'tienda.creada', { slug: mCl[1], cliente: idF, owner: ownerC }); setDB(d);
+          return ok({ client: nc });
+        }
+        if (method === 'POST' && mCl[2]) {
+          var cidC = mCl[2].slice(1);
+          var cc = arrC.find(function (x) { return x.id === cidC; });
+          if (!cc) return fail(404, 'Cliente no encontrado.');
+          var actC = body.action || '';
+          function sumarDias(iso0, diasN) { var hoy0 = new Date(); var b0 = iso0 && iso0 >= hoyIso ? new Date(iso0 + 'T00:00:00') : hoy0; b0.setDate(b0.getDate() + diasN); var q0 = function (v) { return (v < 10 ? '0' : '') + v; }; return b0.getFullYear() + '-' + q0(b0.getMonth() + 1) + '-' + q0(b0.getDate()); }
+          if (actC === 'pay') { cc.paidUntil = sumarDias(cc.paidUntil, 30); cc.status = 'activa'; delete cc._auto; act(d, 'equipo', 'tienda.pago', { slug: mCl[1], cliente: cidC, vence: cc.paidUntil }); setDB(d); return ok({ client: cc }); }
+          if (actC === 'suspend') { cc.status = 'suspendida'; act(d, 'equipo', 'tienda.bloqueada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
+          if (actC === 'reactivate') { cc.paidUntil = sumarDias(cc.paidUntil, 7); cc.status = 'activa'; delete cc._auto; act(d, 'equipo', 'tienda.desbloqueada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
+          if (actC === 'delete') { var iC = arrC.findIndex(function (x) { return x.id === cidC; }); arrC.splice(iC, 1); act(d, 'equipo', 'tienda.baja', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ ok: true }); }
+          return fail(400, 'Acción inválida.');
+        }
+        return fail(404, 'Ruta de clientes no encontrada.');
       }
       if (path === '/api/activity' && method === 'GET') return ok({ activity: d.activity.slice(0, 80) });
       if (path === '/api/health') return ok({ ok: true });
@@ -670,11 +738,12 @@
     var site = (a.urls && a.urls.site) || '';
     var adm = (a.urls && a.urls.admin) || '';
     var m = String(a.adminMode || 'auto').toLowerCase();
+    if (m === 'clientes' || a.slug === 'mi-tienda') return { mode: 'clientes' };
     if (m === 'direct' || a.slug === 'appi') { var u = adm || site; return { mode: u ? 'direct' : 'none', url: u }; }
     if (m === 'embed') return { mode: (adm || site) ? 'embed' : 'none', url: adm || site };
     if (m === 'none') return { mode: 'none', url: '' };
     if (adm) return { mode: 'embed', url: adm };
-    if (site) { if (a.slug === 'mi-tienda') return { mode: 'embed', url: site + '#admin' }; return { mode: 'embed', url: site }; }
+    if (site) return { mode: 'embed', url: site };
     return { mode: 'none', url: '' };
   }
   function openAdmin(slug) {
@@ -690,13 +759,16 @@
       '<span class="muted">' + esc(a.slug) + '</span><span style="flex:1"></span>' +
       '<button class="btn small" data-aback>‹ Volver a la ficha</button></div>';
     var content = '';
-    if (ac.mode === 'embed' && ac.url) {
+    if (ac.mode === 'clientes') {
+      content = '<div class="cl-ctx">🧑‍💼 <b>Panel POPUPS</b> — acá vivís las ventas de esta app: altas, pagos, vencimientos, bloqueos y bajas. Cada dueño entra <b>solo</b> con su link y edita su tienda a gusto; si no paga, su página queda suspendida (ve el cartel y no puede vender).</div><div id="clientsPanel">' + clientesHTML(a) + '</div>';
+    } else if (ac.mode === 'embed' && ac.url) {
       content = '<p class="muted" style="margin:0 0 10px;line-height:1.6">Este es el panel propio de la app (se muestra acá adentro). <a href="' + esc(ac.url) + '" target="_blank" rel="noopener" style="color:var(--acc)">Abrir en pestaña ↗</a></p>' +
         '<iframe class="ext" src="' + esc(ac.url) + '" title="Panel de ' + esc(a.name) + '" style="width:100%;height:70vh;min-height:420px;border:1px solid var(--line);border-radius:14px;background:#fff;box-sizing:border-box"></iframe>';
     } else {
       content = '<p class="muted">Esta app todavía no tiene panel de administración. Si definís cómo se administra en “Editar ficha” (o en el popups.app.json de la app), el botón ◈ se va a activar solo.</p>';
     }
     body.innerHTML = head + content;
+    if (ac.mode === 'clientes') bindClientesPanel(a);
     var bb = body.querySelector('[data-aback]');
     if (bb) bb.addEventListener('click', leaveAdmin);
   }function leaveAdmin() {
@@ -746,6 +818,134 @@
   setTimeout(function () { try { if (state && state.token) autoDetectVersions(true).catch(function () {}); } catch (e) {} }, 4000);
   var _abtn = document.querySelector('nav.tabs [data-tab="apps"]');
   if (_abtn) _abtn.addEventListener('click', function () { try { autoDetectVersions(false).catch(function () {}); } catch (e) {} });
+
+  /* ================================================================
+     CLIENTES DE PRODUCTOS VENDIDOS (panel POPUPS)
+     ================================================================ */
+  var clCurrentSlug = '';
+  function clTodayIso() { var d = new Date(), p = function (v) { return (v < 10 ? '0' : '') + v; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+  function clFmt(iso) { if (!iso) return '—'; var s = String(iso).slice(0, 10).split('-'); return s[2] + '/' + s[1] + '/' + s[0]; }
+  function clientesData(slug) { var d = getDB(); if (!d.clients) d.clients = {}; if (!d.clients[slug]) d.clients[slug] = []; return d.clients[slug]; }
+  function clState(c) {
+    var hoy = clTodayIso();
+    if (c.status !== 'activa' || (c.paidUntil && c.paidUntil < hoy)) return { k: 'sus', t: 'Suspendida' };
+    if (!c.paidUntil) return { k: 'ok', t: 'Al día' };
+    var days = Math.round((new Date(c.paidUntil + 'T00:00:00') - new Date(hoy + 'T00:00:00')) / 86400000);
+    if (days <= 7) return { k: 'warn', t: 'Vence en ' + days + ' día' + (days === 1 ? '' : 's') };
+    return { k: 'ok', t: 'Al día · vence ' + clFmt(c.paidUntil) };
+  }
+  function clLinkOf(c) { return 'https://somospopups.github.io/Mi-Tienda/?tienda=' + c.id; }
+  function clientesHTML(a) {
+    var arr = clientesData(a.slug);
+    var tot = arr.length;
+    var act = arr.filter(function (c) { return c.status === 'activa'; }).length;
+    var sus = tot - act;
+    var warn = arr.filter(function (c) { return clState(c).k === 'warn'; }).length;
+    var stats = '<div class="cl-stats"><div class="cl-stat"><b>' + tot + '</b><span>Tiendas</span></div>' +
+      '<div class="cl-stat"><b style="color:#7ccb9a">' + act + '</b><span>Activas</span></div>' +
+      '<div class="cl-stat"><b style="color:#e08a5f">' + sus + '</b><span>Suspendidas</span></div>' +
+      '<div class="cl-stat"><b style="color:#e3b36a">' + warn + '</b><span>Vencen ≤ 7 días</span></div></div>';
+    if (!arr.length) return stats + '<div class="cl-empty">Todavía no vendiste ninguna tienda de esta app. Tocá “＋ Vender tienda nueva” y creá el link del primer dueño.</div>';
+    var rows = arr.map(function (c) {
+      var s = clState(c);
+      var chip = '<span class="cl-chip ' + s.k + '"><i></i>' + s.t + '</span>';
+      var susBtn = (c.status === 'activa')
+        ? '<button class="btn small" data-ca="suspend" data-cid="' + esc(c.id) + '" style="color:#e08a5f">🔒 Bloquear</button>'
+        : '<button class="btn small" data-ca="reactivate" data-cid="' + esc(c.id) + '" style="color:#7ccb9a">🔓 Desbloquear</button>';
+      return '<tr><td><div class="cl-owner">' + esc(c.owner) + '</div><div class="cl-sub">@' + esc(c.id) + (c.contact ? ' · ' + esc(c.contact) : '') + '</div></td>' +
+        '<td>' + chip + '</td>' +
+        '<td style="white-space:nowrap">' + (c.paidUntil ? clFmt(c.paidUntil) : '—') + '</td>' +
+        '<td><div class="cl-sub" style="max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(clLinkOf(c)) + '</div>' +
+        '<button class="cl-linkbtn" data-ca="copy" data-cid="' + esc(c.id) + '">Copiar</button> · <a class="cl-linkbtn" href="' + esc(clLinkOf(c)) + '" target="_blank" rel="noopener">Abrir ↗</a></td>' +
+        '<td><div class="cl-acts">' +
+        '<button class="btn small" data-ca="pay" data-cid="' + esc(c.id) + '">💳 +30 días</button>' + susBtn +
+        '<button class="btn small danger" data-ca="del" data-cid="' + esc(c.id) + '">🗑 Baja</button>' +
+        '</div></td></tr>';
+    }).join('');
+    return stats +
+      '<div style="margin-bottom:12px"><button class="btn small" id="btnNewClient" style="background:var(--ink);color:#10130e;border-color:var(--ink)">＋ Vender tienda nueva</button></div>' +
+      '<div style="overflow-x:auto"><table class="cl-table"><thead><tr><th>Dueño</th><th>Estado</th><th>Vence</th><th>Link del dueño</th><th style="text-align:right">Acciones POPUPS</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+  function refreshClientesPanel() {
+    if (!clCurrentSlug) return;
+    var p = $('clientsPanel');
+    if (!p) return;
+    var a = null;
+    for (var i = 0; i < state.apps.length; i++) { if (state.apps[i].slug === clCurrentSlug) { a = state.apps[i]; break; } }
+    if (!a) return;
+    p.innerHTML = clientesHTML(a);
+    bindClientesPanel(a);
+  }
+  function bindClientesPanel(a) {
+    clCurrentSlug = a.slug;
+    var p = $('clientsPanel');
+    if (!p) return;
+    var nb = $('btnNewClient');
+    if (nb && !nb.dataset.bnd) {
+      nb.dataset.bnd = '1';
+      nb.addEventListener('click', function () { openClientModal(); });
+    }
+    var acc = p.querySelectorAll('[data-ca]');
+    for (var i = 0; i < acc.length; i++) {
+      var b = acc[i];
+      if (b.dataset.bndc) continue;
+      b.dataset.bndc = '1';
+      b.addEventListener('click', function () {
+        var actn = this.dataset.ca, cid = this.dataset.cid;
+        var arr = clientesData(clCurrentSlug);
+        var c = null;
+        for (var j = 0; j < arr.length; j++) { if (arr[j].id === cid) { c = arr[j]; break; } }
+        if (!c) { toast('No se encontró la tienda.'); return; }
+        if (actn === 'copy') {
+          var lnk = clLinkOf(c);
+          var done = function () { toast('Link copiado ✅'); };
+          try { navigator.clipboard.writeText(lnk).then(done, function () { done(); }); } catch (e) { done(); }
+          return;
+        }
+        function go() {
+          api('/api/apps/' + clCurrentSlug + '/clients/' + cid, { method: 'POST', body: { action: actn } })
+            .then(function () {
+              var msg = actn === 'pay' ? 'Pago registrado: +30 días ✅' : (actn === 'suspend' ? 'Tienda bloqueada 🔒' : (actn === 'reactivate' ? 'Tienda desbloqueada 🔓' : 'Tienda dada de baja'));
+              toast(msg); refreshClientesPanel(); loadAll();
+            })
+            .catch(function (er) { toast(er.message || 'Error'); });
+        }
+        if (actn === 'del') { if (confirm('¿Dar de baja definitiva a ' + c.owner + ' (@' + c.id + ')? Su link dejará de funcionar.')) go(); }
+        else if (actn === 'suspend') { if (confirm('¿Bloquear la página de ' + c.owner + '? El dueño verá su tienda suspendida hasta regularizar.')) go(); }
+        else go();
+      });
+    }
+  }
+  function openClientModal() {
+    var f = $('clientForm'); if (f) f.reset();
+    $('clientFormError').textContent = '';
+    $('clModalTitle').textContent = 'Vender tienda nueva — ' + clCurrentSlug;
+    openOv('modalClient');
+  }
+  (function bindClientForm() {
+    var cf = $('clientForm');
+    if (!cf || cf.dataset.bnd) return;
+    cf.dataset.bnd = '1';
+    cf.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var f = e.target;
+      var btn = f.querySelector('button[type=submit]');
+      if (btn) btn.disabled = true;
+      $('clientFormError').textContent = '';
+      api('/api/apps/' + clCurrentSlug + '/clients', { method: 'POST', body: { owner: f.clName.value, contact: f.clContact.value } })
+        .then(function (r) {
+          if (btn) btn.disabled = false;
+          closeOv();
+          toast('Tienda creada: ' + r.client.owner + ' → ' + clLinkOf(r.client));
+          refreshClientesPanel(); loadAll();
+        })
+        .catch(function (er) {
+          if (btn) btn.disabled = false;
+          $('clientFormError').textContent = er.message || 'Error al crear la tienda.';
+        });
+    });
+  })();
+
 })();
 
 </script>
@@ -760,6 +960,27 @@
   
   .sheetx .hero{padding:6px 0 10px}
   .sheetx .hero h1{font-size:24px}
+.cl-stats{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px}
+  .cl-stat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px 16px;min-width:118px;box-sizing:border-box}
+  .cl-stat b{display:block;font-size:22px;line-height:1.2;color:var(--ink)}
+  .cl-stat span{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  .cl-table{width:100%;border-collapse:collapse;font-size:13px}
+  .cl-table th{text-align:left;padding:7px 10px;color:var(--mut);font-weight:600;border-bottom:1px solid var(--line);font-size:10.5px;text-transform:uppercase;letter-spacing:.6px}
+  .cl-table td{padding:9px 10px;border-bottom:1px solid rgba(242,239,231,.06);vertical-align:middle}
+  .cl-table tr:last-child td{border-bottom:0}
+  .cl-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+  .cl-chip i{width:7px;height:7px;border-radius:50%;background:currentColor}
+  .cl-chip.ok{background:rgba(124,203,154,.14);color:#7ccb9a}
+  .cl-chip.sus{background:rgba(224,138,95,.16);color:#e08a5f}
+  .cl-chip.warn{background:rgba(227,179,106,.16);color:#e3b36a}
+  .cl-owner{color:var(--ink);font-weight:700}
+  .cl-sub{font-size:11px;color:var(--mut)}
+  .cl-acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .cl-linkbtn{background:none;border:0;padding:0;color:var(--acc);cursor:pointer;font-size:12px;text-decoration:underline dotted}
+  .err-txt{color:#ff8f84;font-size:12.5px}
+  .cl-empty{padding:24px;text-align:center;color:var(--mut);border:1px dashed var(--line);border-radius:14px;font-size:13px}
+  .cl-ctx{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 14px;font-size:12.5px;color:var(--mut);line-height:1.55}
+  .cl-ctx b{color:var(--ink)}
 </style>
 
 </body>
