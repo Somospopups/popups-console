@@ -58,3 +58,8 @@
 - La piel POPUPS es un archivo propio del repo de APPI (`skin-popups.js`) que solo se activa con el parámetro `?skin=popups`; sin él la app de los distribuidores se ve y funciona igual que siempre.
 - La sesión de administrador se guarda una sola vez (candado 🔒 dentro de la app); en las próximas aperturas APPI entra directo al panel.
 - **Limpieza**: se eliminó de la consola el antiguo módulo nativo de APPI embebido (código, diálogo y estilos asociados, ~41 KB), que duplicaba el panel con una réplica propia. La consola queda más liviana y ordenada.
+
+## v0.11.0 · 2026-09-07
+- **"◈ ADMINISTRACIÓN" de APPI lleva directo al panel real**: al presionarlo, la consola navega (misma pestaña) a la app APPI, que entra sola al panel de administrador cuando ya hay sesión de admin guardada.
+- Se retira el iframe embebido con piel POPUPS: APPI queda **exactamente como está** (sus propios colores y apartados, sin parámetros ni archivos extra).
+- El resto de las apps mantienen su administración dentro del popup de la ficha, como hasta ahora.
