@@ -79,3 +79,7 @@
   - Vencimiento automático: si una tienda vence y no paga, pasa sola a suspendida.
 - **Puerta en Mi-Tienda v0.2.0**: cada dueño entra con su link `?tienda=juan` y, si está bloqueada, la página entera muestra el cartel de suspendida (no vende ni edita). Al pagar, vuelve sola.
 - El panel del dueño (editar su tienda) queda adentro de Mi-Tienda, con su link; POPUPS ya no necesita entrar ahí.
+
+## v0.13.1 · 2026-09-07
+- Al vender una tienda nueva ahora se puede cargar el **nombre de la empresa / local** además del dueño (opcional). La empresa se muestra destacada en el panel y el link se arma con su nombre (si no hay, usa el del dueño).
+- Las tiendas demo ya tienen empresa: Panadería La Espiga (Juan) y Boutique Mariela (Mariela).

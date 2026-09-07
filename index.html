@@ -296,6 +296,7 @@
       <p class="sub" id="clModalSub">Se le crea al dueño su link para ver y editar su tienda.</p>
       <form id="clientForm">
         <div class="field"><label>Nombre del dueño *</label><input name="clName" maxlength="60" required placeholder="Ej. Juan Pérez"></div>
+        <div class="field"><label>Nombre de la empresa / local</label><input name="clBiz" maxlength="80" placeholder="Ej. Panadería La Espiga (opcional)"></div>
         <div class="field"><label>Contacto (WhatsApp o email)</label><input name="clContact" maxlength="120" placeholder="+54 9 11 ..."></div>
         <div class="row" style="justify-content:flex-end;align-items:center">
           <span class="err-txt" id="clientFormError"></span><span style="flex:1"></span>
@@ -332,8 +333,8 @@
     var h = new Date();
     function d(n) { var x = new Date(h.getTime()); x.setDate(x.getDate() + n); var p = function (v) { return (v < 10 ? '0' : '') + v; }; return x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate()); }
     return [
-      { id: 'juan', owner: 'Juan Pérez', contact: '', paidUntil: d(18), status: 'activa', note: '', createdAt: new Date().toISOString() },
-      { id: 'mariela', owner: 'Mariela Gómez', contact: '', paidUntil: d(8), status: 'activa', note: '', createdAt: new Date().toISOString() }
+      { id: 'juan', owner: 'Juan Pérez', biz: 'Panadería La Espiga', contact: '', paidUntil: d(18), status: 'activa', note: '', createdAt: new Date().toISOString() },
+      { id: 'mariela', owner: 'Mariela Gómez', biz: 'Boutique Mariela', contact: '', paidUntil: d(8), status: 'activa', note: '', createdAt: new Date().toISOString() }
     ];
   }
 function seedDB() {
@@ -363,7 +364,7 @@ function seedDB() {
   }
   function getDB() {
     if (MEM) return MEM;
-    try { var raw = localStorage.getItem('popups_console_v1'); if (raw) { var d = JSON.parse(raw); if (d && d.apps) { if (!d.clients) d.clients = {}; if (!d.clients['mi-tienda']) d.clients['mi-tienda'] = seedClientsMT(); MEM = d; return d; } } } catch (e) {}
+    try { var raw = localStorage.getItem('popups_console_v1'); if (raw) { var d = JSON.parse(raw); if (d && d.apps) { if (!d.clients) d.clients = {}; if (!d.clients['mi-tienda']) d.clients['mi-tienda'] = seedClientsMT(); else { var __bizD = { juan: 'Panadería La Espiga', mariela: 'Boutique Mariela' }; var __arD = d.clients['mi-tienda']; var __chD = false; for (var __iD = 0; __iD < __arD.length; __iD++) { if (!__arD[__iD].biz && __bizD[__arD[__iD].id]) { __arD[__iD].biz = __bizD[__arD[__iD].id]; __chD = true; } } if (__chD) setDB(d); } MEM = d; return d; } } } catch (e) {}
     MEM = seedDB(); return MEM;
   }
   function setDB(d) { MEM = d; try { localStorage.setItem('popups_console_v1', JSON.stringify(d)); } catch (e) {} }
@@ -477,12 +478,13 @@ function seedDB() {
         if (method === 'POST' && !mCl[2]) {
           var ownerC = clean(body.owner, 80);
           if (!ownerC) return fail(400, 'Poné el nombre del dueño.');
-          var baseC = String(ownerC).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+          var bizC = clean(body.biz, 80);
+          var baseC = String(bizC || ownerC).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
           var idC = baseC || 'tienda' + Date.now(), kC = 2, idF = idC;
           while (arrC.some(function (c) { return c.id === idF; })) { idF = idC + '-' + kC; kC++; }
           var dC = new Date(); dC.setDate(dC.getDate() + 30);
           var qC = function (v) { return (v < 10 ? '0' : '') + v; };
-          var nc = { id: idF, owner: ownerC, contact: clean(body.contact, 120), paidUntil: dC.getFullYear() + '-' + qC(dC.getMonth() + 1) + '-' + qC(dC.getDate()), status: 'activa', note: '', createdAt: new Date().toISOString() };
+          var nc = { id: idF, owner: ownerC, biz: bizC, contact: clean(body.contact, 120), paidUntil: dC.getFullYear() + '-' + qC(dC.getMonth() + 1) + '-' + qC(dC.getDate()), status: 'activa', note: '', createdAt: new Date().toISOString() };
           arrC.push(nc); act(d, 'equipo', 'tienda.creada', { slug: mCl[1], cliente: idF, owner: ownerC }); setDB(d);
           return ok({ client: nc });
         }
@@ -852,7 +854,9 @@ function seedDB() {
       var susBtn = (c.status === 'activa')
         ? '<button class="btn small" data-ca="suspend" data-cid="' + esc(c.id) + '" style="color:#e08a5f">🔒 Bloquear</button>'
         : '<button class="btn small" data-ca="reactivate" data-cid="' + esc(c.id) + '" style="color:#7ccb9a">🔓 Desbloquear</button>';
-      return '<tr><td><div class="cl-owner">' + esc(c.owner) + '</div><div class="cl-sub">@' + esc(c.id) + (c.contact ? ' · ' + esc(c.contact) : '') + '</div></td>' +
+      var nmRow = esc(c.biz || c.owner);
+      var subRow = (c.biz ? 'Dueño: ' + esc(c.owner) + ' · ' : '') + '@' + esc(c.id) + (c.contact ? ' · ' + esc(c.contact) : '');
+      return '<tr><td><div class="cl-owner">' + nmRow + '</div><div class="cl-sub">' + subRow + '</div></td>' +
         '<td>' + chip + '</td>' +
         '<td style="white-space:nowrap">' + (c.paidUntil ? clFmt(c.paidUntil) : '—') + '</td>' +
         '<td><div class="cl-sub" style="max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(clLinkOf(c)) + '</div>' +
@@ -932,11 +936,11 @@ function seedDB() {
       var btn = f.querySelector('button[type=submit]');
       if (btn) btn.disabled = true;
       $('clientFormError').textContent = '';
-      api('/api/apps/' + clCurrentSlug + '/clients', { method: 'POST', body: { owner: f.clName.value, contact: f.clContact.value } })
+      api('/api/apps/' + clCurrentSlug + '/clients', { method: 'POST', body: { owner: f.clName.value, biz: f.clBiz.value, contact: f.clContact.value } })
         .then(function (r) {
           if (btn) btn.disabled = false;
           closeOv();
-          toast('Tienda creada: ' + r.client.owner + ' → ' + clLinkOf(r.client));
+          toast('Tienda creada: ' + (r.client.biz ? r.client.biz + ' · ' : '') + r.client.owner + ' → ' + clLinkOf(r.client));
           refreshClientesPanel(); loadAll();
         })
         .catch(function (er) {
