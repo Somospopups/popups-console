@@ -298,6 +298,14 @@
         <div class="field"><label>Nombre del dueño *</label><input name="clName" maxlength="60" required placeholder="Ej. Juan Pérez"></div>
         <div class="field"><label>Nombre de la empresa / local</label><input name="clBiz" maxlength="80" placeholder="Ej. Panadería La Espiga (opcional)"></div>
         <div class="field"><label>Contacto (WhatsApp o email)</label><input name="clContact" maxlength="120" placeholder="+54 9 11 ..."></div>
+        <div class="field"><label>Plan del dueño</label>
+          <select name="clPlan">
+            <option value="p25" selected>Hasta 25 productos · $30.000/mes</option>
+            <option value="p50">Hasta 50 productos · $50.000/mes</option>
+            <option value="p100">Hasta 100 productos · $75.000/mes</option>
+            <option value="pilim">Más de 100 productos · $100.000/mes</option>
+          </select>
+        </div>
         <div class="row" style="justify-content:flex-end;align-items:center">
           <span class="err-txt" id="clientFormError"></span><span style="flex:1"></span>
           <button type="button" class="btn ghost small" data-close>Cancelar</button>
@@ -333,8 +341,8 @@
     var h = new Date();
     function d(n) { var x = new Date(h.getTime()); x.setDate(x.getDate() + n); var p = function (v) { return (v < 10 ? '0' : '') + v; }; return x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate()); }
     return [
-      { id: 'juan', owner: 'Juan Pérez', biz: 'Panadería La Espiga', contact: '', paidUntil: d(18), status: 'activa', note: '', createdAt: new Date().toISOString() },
-      { id: 'mariela', owner: 'Mariela Gómez', biz: 'Boutique Mariela', contact: '', paidUntil: d(8), status: 'activa', note: '', createdAt: new Date().toISOString() }
+      { id: 'juan', owner: 'Juan Pérez', biz: 'Panadería La Espiga', planId: 'p50', contact: '', paidUntil: d(18), status: 'activa', note: '', createdAt: new Date().toISOString() },
+      { id: 'mariela', owner: 'Mariela Gómez', biz: 'Boutique Mariela', planId: 'p25', contact: '', paidUntil: d(8), status: 'activa', note: '', createdAt: new Date().toISOString() }
     ];
   }
 function seedDB() {
@@ -364,7 +372,7 @@ function seedDB() {
   }
   function getDB() {
     if (MEM) return MEM;
-    try { var raw = localStorage.getItem('popups_console_v1'); if (raw) { var d = JSON.parse(raw); if (d && d.apps) { if (!d.clients) d.clients = {}; if (!d.clients['mi-tienda']) d.clients['mi-tienda'] = seedClientsMT(); else { var __bizD = { juan: 'Panadería La Espiga', mariela: 'Boutique Mariela' }; var __arD = d.clients['mi-tienda']; var __chD = false; for (var __iD = 0; __iD < __arD.length; __iD++) { if (!__arD[__iD].biz && __bizD[__arD[__iD].id]) { __arD[__iD].biz = __bizD[__arD[__iD].id]; __chD = true; } } if (__chD) setDB(d); } MEM = d; return d; } } } catch (e) {}
+    try { var raw = localStorage.getItem('popups_console_v1'); if (raw) { var d = JSON.parse(raw); if (d && d.apps) { if (!d.clients) d.clients = {}; if (!d.clients['mi-tienda']) d.clients['mi-tienda'] = seedClientsMT(); else { var __bizD = { juan: 'Panadería La Espiga', mariela: 'Boutique Mariela' }; var __planD = { juan: 'p50', mariela: 'p25' }; var __arD = d.clients['mi-tienda']; var __chD = false; for (var __iD = 0; __iD < __arD.length; __iD++) { var __cD = __arD[__iD]; if (!__cD.biz && __bizD[__cD.id]) { __cD.biz = __bizD[__cD.id]; __chD = true; } if (!__cD.planId) { __cD.planId = __planD[__cD.id] || 'p25'; __chD = true; } } if (__chD) setDB(d); } MEM = d; return d; } } } catch (e) {}
     MEM = seedDB(); return MEM;
   }
   function setDB(d) { MEM = d; try { localStorage.setItem('popups_console_v1', JSON.stringify(d)); } catch (e) {} }
@@ -484,7 +492,7 @@ function seedDB() {
           while (arrC.some(function (c) { return c.id === idF; })) { idF = idC + '-' + kC; kC++; }
           var dC = new Date(); dC.setDate(dC.getDate() + 30);
           var qC = function (v) { return (v < 10 ? '0' : '') + v; };
-          var nc = { id: idF, owner: ownerC, biz: bizC, contact: clean(body.contact, 120), paidUntil: dC.getFullYear() + '-' + qC(dC.getMonth() + 1) + '-' + qC(dC.getDate()), status: 'activa', note: '', createdAt: new Date().toISOString() };
+          var nc = { id: idF, owner: ownerC, biz: bizC, planId: (function () { for (var pI = 0; pI < MT_PLANS.length; pI++) { if (MT_PLANS[pI].id === body.planId) return body.planId; } return 'p25'; })(), contact: clean(body.contact, 120), paidUntil: dC.getFullYear() + '-' + qC(dC.getMonth() + 1) + '-' + qC(dC.getDate()), status: 'activa', note: '', createdAt: new Date().toISOString() };
           arrC.push(nc); act(d, 'equipo', 'tienda.creada', { slug: mCl[1], cliente: idF, owner: ownerC }); setDB(d);
           return ok({ client: nc });
         }
@@ -498,6 +506,7 @@ function seedDB() {
           if (actC === 'suspend') { cc.status = 'suspendida'; act(d, 'equipo', 'tienda.bloqueada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
           if (actC === 'reactivate') { cc.paidUntil = sumarDias(cc.paidUntil, 7); cc.status = 'activa'; delete cc._auto; act(d, 'equipo', 'tienda.desbloqueada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
           if (actC === 'baja') { cc.status = 'baja'; cc.bajaAt = new Date().toISOString(); act(d, 'equipo', 'tienda.baja', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
+          if (actC === 'plan') { var plId = body.planId; var plOk = false; for (var plI = 0; plI < MT_PLANS.length; plI++) { if (MT_PLANS[plI].id === plId) plOk = true; } if (plOk) { cc.planId = plId; act(d, 'equipo', 'tienda.plan', { slug: mCl[1], cliente: cidC, plan: plId }); setDB(d); } return ok({ client: cc }); }
           if (actC === 'delete') { var iC = arrC.findIndex(function (x) { return x.id === cidC; }); arrC.splice(iC, 1); act(d, 'equipo', 'tienda.eliminada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ ok: true }); }
           return fail(400, 'Acción inválida.');
         }
@@ -838,6 +847,14 @@ function seedDB() {
     return { k: 'ok', t: 'Al día · vence ' + clFmt(c.paidUntil) };
   }
   function clLinkOf(c) { return 'https://somospopups.github.io/Mi-Tienda/?tienda=' + c.id; }
+  var MT_PLANS = [
+    { id: 'p25', name: 'Hasta 25', max: 25, price: 30000 },
+    { id: 'p50', name: 'Hasta 50', max: 50, price: 50000 },
+    { id: 'p100', name: 'Hasta 100', max: 100, price: 75000 },
+    { id: 'pilim', name: 'Más de 100', max: null, price: 100000 }
+  ];
+  function planOf(c) { var id = c && c.planId; for (var i = 0; i < MT_PLANS.length; i++) { if (MT_PLANS[i].id === id) return MT_PLANS[i]; } return MT_PLANS[0]; }
+  function fmtARS(n) { return '$' + String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
   var clTab = 'act';
   function clChipHtml(c) {
     var s = clState(c);
@@ -848,6 +865,24 @@ function seedDB() {
     var sub = (c.biz ? 'Dueño: ' + esc(c.owner) + ' · ' : '') + '@' + esc(c.id) + (c.contact ? ' · ' + esc(c.contact) : '');
     return '<div class="cl-owner">' + nm + '</div><div class="cl-sub">' + sub + '</div>';
   }
+  var clTab = 'act';
+  function clChipHtml(c) {
+    var s = clState(c);
+    return '<span class="cl-chip ' + s.k + '"><i></i>' + s.t + '</span>';
+  }
+  function clNameHtml(c) {
+    var nm = esc(c.biz || c.owner);
+    var sub = (c.biz ? 'Dueño: ' + esc(c.owner) + ' · ' : '') + '@' + esc(c.id) + (c.contact ? ' · ' + esc(c.contact) : '');
+    return '<div class="cl-owner">' + nm + '</div><div class="cl-sub">' + sub + '</div>';
+  }
+  function clPlanSelect(c) {
+    var opts = '';
+    for (var i = 0; i < MT_PLANS.length; i++) {
+      var p = MT_PLANS[i];
+      opts += '<option value="' + p.id + '"' + (planOf(c).id === p.id ? ' selected' : '') + '>' + esc(p.name + ' productos · ' + fmtARS(p.price) + '/mes') + '</option>';
+    }
+    return '<select class="cl-plan" data-cplan data-cid="' + esc(c.id) + '">' + opts + '</select>';
+  }
   function clientesHTML(a) {
     var arrAll = clientesData(a.slug);
     var hoy = clTodayIso(), ch = false;
@@ -856,14 +891,15 @@ function seedDB() {
     var arr = arrAll.filter(function (c) { return c.status !== 'baja'; });
     var bajas = arrAll.filter(function (c) { return c.status === 'baja'; });
     if (clTab === 'baja' && !bajas.length) clTab = 'act';
-    var tot = arr.length, act = 0, sus = 0;
-    arr.forEach(function (c) { if (c.status === 'activa') act++; else sus++; });
+    var tot = arr.length, act = 0, sus = 0, mensual = 0;
+    arr.forEach(function (c) { if (c.status === 'activa') { act++; mensual += planOf(c).price; } else sus++; });
     var warn = arr.filter(function (c) { return clState(c).k === 'warn'; }).length;
     var stats = '<div class="cl-stats">' +
       '<div class="cl-stat"><b>' + tot + '</b><span>Tiendas</span></div>' +
       '<div class="cl-stat"><b style="color:#7ccb9a">' + act + '</b><span>Activas</span></div>' +
       '<div class="cl-stat"><b style="color:#e08a5f">' + sus + '</b><span>Suspendidas</span></div>' +
-      '<div class="cl-stat"><b style="color:#e3b36a">' + warn + '</b><span>Vencen ≤ 7 días</span></div></div>';
+      '<div class="cl-stat"><b style="color:#e3b36a">' + warn + '</b><span>Vencen ≤ 7 días</span></div>' +
+      '<div class="cl-stat"><b style="color:#b7e078">' + fmtARS(mensual) + '</b><span>Recurrente/mes</span></div></div>';
     function tb(sel, txt, n) {
       var on = clTab === sel;
       return '<button class="btn small" data-cltab="' + sel + '" style="' + (on ? 'background:var(--ink);color:#10130e;border-color:var(--ink)' : '') + '">' + txt + (n != null ? ' (' + n + ')' : '') + '</button>';
@@ -871,7 +907,7 @@ function seedDB() {
     var togg = '<div style="display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap">' +
       tb('act', '🏪 Tiendas', tot) + tb('baja', '🗄 Bajas', bajas.length) + '</div>';
     function linkCell(c) {
-      return '<div class="cl-sub" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(clLinkOf(c)) + '</div>' +
+      return '<div class="cl-sub" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(clLinkOf(c)) + '</div>' +
         '<button class="cl-linkbtn" data-ca="copy" data-cid="' + esc(c.id) + '">Copiar</button> · <a class="cl-linkbtn" href="' + esc(clLinkOf(c)) + '" target="_blank" rel="noopener">Abrir ↗</a>';
     }
     if (clTab === 'baja') {
@@ -898,6 +934,7 @@ function seedDB() {
         ? '<button class="btn small" data-ca="suspend" data-cid="' + esc(c.id) + '" style="color:#e08a5f">🔒 Bloquear</button>'
         : '<button class="btn small" data-ca="reactivate" data-cid="' + esc(c.id) + '" style="color:#7ccb9a">🔓 Desbloquear</button>';
       return '<tr><td>' + clNameHtml(c) + '</td>' +
+        '<td style="min-width:150px">' + clPlanSelect(c) + '</td>' +
         '<td>' + chip + '</td>' +
         '<td style="white-space:nowrap">' + (c.paidUntil ? clFmt(c.paidUntil) : '—') + '</td>' +
         '<td>' + linkCell(c) + '</td>' +
@@ -908,7 +945,7 @@ function seedDB() {
     }).join('');
     return stats + togg +
       '<div style="margin-bottom:12px"><button class="btn small" id="btnNewClient" style="background:var(--ink);color:#10130e;border-color:var(--ink)">＋ Vender tienda nueva</button></div>' +
-      '<div style="overflow-x:auto"><table class="cl-table"><thead><tr><th>Tienda / dueño</th><th>Estado</th><th>Vence</th><th>Link del dueño</th><th style="text-align:right">Acciones POPUPS</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+      '<div style="overflow-x:auto"><table class="cl-table"><thead><tr><th>Tienda / dueño</th><th>Plan (cambiable)</th><th>Estado</th><th>Vence</th><th>Link del dueño</th><th style="text-align:right">Acciones POPUPS</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
   function refreshClientesPanel() {
     if (!clCurrentSlug) return;
@@ -927,6 +964,18 @@ function seedDB() {
     var tabs = p.querySelectorAll('[data-cltab]');
     for (var tI = 0; tI < tabs.length; tI++) {
       if (!tabs[tI].dataset.bndt) { tabs[tI].dataset.bndt = '1'; tabs[tI].addEventListener('click', function () { clTab = this.dataset.cltab; refreshClientesPanel(); }); }
+    }
+    var pls = p.querySelectorAll('[data-cplan]');
+    for (var pI2 = 0; pI2 < pls.length; pI2++) {
+      if (!pls[pI2].dataset.bndp) {
+        pls[pI2].dataset.bndp = '1';
+        pls[pI2].addEventListener('change', function () {
+          var cid = this.dataset.cid;
+          api('/api/apps/' + clCurrentSlug + '/clients/' + cid, { method: 'POST', body: { action: 'plan', planId: this.value } })
+            .then(function () { toast('Plan actualizado ✅'); refreshClientesPanel(); loadAll(); })
+            .catch(function (er) { toast(er.message || 'Error al cambiar el plan'); });
+        });
+      }
     }
     var nb = $('btnNewClient');
     if (nb && !nb.dataset.bnd) { nb.dataset.bnd = '1'; nb.addEventListener('click', function () { openClientModal(); }); }
@@ -984,7 +1033,7 @@ function openClientModal() {
       var btn = f.querySelector('button[type=submit]');
       if (btn) btn.disabled = true;
       $('clientFormError').textContent = '';
-      api('/api/apps/' + clCurrentSlug + '/clients', { method: 'POST', body: { owner: f.clName.value, biz: f.clBiz.value, contact: f.clContact.value } })
+      api('/api/apps/' + clCurrentSlug + '/clients', { method: 'POST', body: { owner: f.clName.value, biz: f.clBiz.value, contact: f.clContact.value, planId: f.clPlan.value } })
         .then(function (r) {
           if (btn) btn.disabled = false;
           closeOv();

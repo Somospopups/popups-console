@@ -87,3 +87,13 @@
 ## v0.13.2 · 2026-09-07
 - **Bajas con archivo (no se borra nada por accidente)**: el botón "🗑 Dar de baja" de una tienda la saca de la lista activa pero la **guarda en el archivo** (pestaña "🗄 Bajas"): su link queda suspendido y el registro se conserva con la fecha de baja.
 - Desde el archivo se puede **↩ Reactivar** (vuelve a la lista activa y su página funciona de nuevo) o **🗑 Eliminar definitiva** (borrado real, con confirmación doble).
+
+## v0.14.0 · 2026-09-07
+- **Planes por cantidad de productos** (público: pequeños emprendedores, puestos y ferias):
+  - Hasta 25 productos · $30.000/mes
+  - Hasta 50 productos · $50.000/mes
+  - Hasta 100 productos · $75.000/mes
+  - Más de 100 productos · $100.000/mes
+- Al **vender una tienda nueva** se elige el plan del dueño. Cada tienda muestra su plan con un **selector para cambiarlo** (subir/bajar) cuando el dueño paga la diferencia.
+- Nueva tarjeta **"Recurrente/mes"**: suma lo que factura la app con las tiendas activas.
+- Los planes están definidos en una sola lista (`MT_PLANS`) para ajustar precios en un solo lugar. El límite real de productos se aplicará en la tienda cuando conectemos la nube (Fase 2).
