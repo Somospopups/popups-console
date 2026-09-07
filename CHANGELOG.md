@@ -52,3 +52,9 @@
 
 ## v0.9.0 · 2026-09-07
 - **La Administración de cada app se ejecuta dentro del mismo popup de la ficha**: el popup no se cierra; su contenido pasa a Administración (APPI nativo, o el panel de la app en iframe) con el botón "‹ Volver a la ficha". Los formularios del panel ya no cierran el popup de fondo.
+
+## v0.10.0 · 2026-09-07
+- **Administración de APPI = la app real con piel POPUPS**: el botón "◈ ADMINISTRACIÓN" de la ficha de APPI abre ahora la aplicación APPI real (https://somospopups.github.io/appi/?skin=popups) dentro del mismo popup, con **todos sus apartados exactamente iguales** (Hoy · Solicitudes · Cuentas · Más) y únicamente la paleta de colores del popup de POPUPS (fondo oscuro, verdes de acento).
+- La piel POPUPS es un archivo propio del repo de APPI (`skin-popups.js`) que solo se activa con el parámetro `?skin=popups`; sin él la app de los distribuidores se ve y funciona igual que siempre.
+- La sesión de administrador se guarda una sola vez (candado 🔒 dentro de la app); en las próximas aperturas APPI entra directo al panel.
+- **Limpieza**: se eliminó de la consola el antiguo módulo nativo de APPI embebido (código, diálogo y estilos asociados, ~41 KB), que duplicaba el panel con una réplica propia. La consola queda más liviana y ordenada.
