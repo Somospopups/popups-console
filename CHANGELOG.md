@@ -27,3 +27,9 @@
 
 ## v0.4.2 · 2026-09-07
 - **Corrección visual definitiva del Panel APPI**: eliminados todos los fondos blancos remanentes (tarjetas de KPIs y contenedores) que quedaban con texto claro encima — ahora todo usa el fondo oscuro del tema. Diálogos forzados al tema oscuro y campos de texto claros con placeholder visible.
+
+## v0.5.0 · 2026-09-07
+- **La administración vive dentro de cada tarjeta** (se eliminó la pestaña "Panel APPI" del navegador superior).
+- Cada app al abrirse muestra su propio menú: Información · Versiones · Notas · Panel externo (las apps nuevas lo tienen automáticamente).
+- La tarjeta de APPI abre el panel de administración nativo con las pestañas del admin real: **Hoy · Solicitudes · Cuentas · Más** (Hoy: KPIs, próximos vencimientos, últimos pagos; Más: WhatsApp, ingresos mensuales, sesión).
+- Catálogo más limpio: las tarjetas cerradas muestran estado, versión y fecha; todo lo demás se abre adentro.
