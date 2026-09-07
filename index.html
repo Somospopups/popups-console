@@ -147,6 +147,7 @@
       <button data-tab="apps" class="active">Apps</button>
       <button data-tab="team">Equipo</button>
       <button data-tab="activity">Actividad</button>
+      <button data-tab="appi">Panel APPI</button>
     </nav>
     <span class="sp"></span>
     <button class="btn acc" id="newAppBtn">+ Nueva app</button>
@@ -168,7 +169,9 @@
     </div>
 
     <!-- VISTA EQUIPO -->
-    <div class="view" id="view-team">
+    <div class="view" id="view-appi"></div>
+
+  <div class="view" id="view-team">
       <div class="hero">
         <span class="kicker">Equipo</span>
         <h1>Quién trabaja<br><em>en POPUPS.</em></h1>
@@ -516,7 +519,9 @@
       document.querySelectorAll('nav.tabs button').forEach(function (x) { x.classList.toggle('active', x === b); });
       document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active'); });
       $('view-' + state.tab).classList.add('active');
+            $('newAppBtn').style.display = (state.tab === 'apps') ? '' : 'none';
       if (state.tab === 'team' && !state.members.length) loadAll();
+      if (state.tab === 'appi') openAppi();
       if (state.tab === 'activity' && !state.activity.length) loadAll();
     });
   });
@@ -567,6 +572,7 @@
     if (card) openDetail(card.dataset.slug);
   });
   function openFrame(url) {
+    if (url.indexOf('https://somospopups.github.io/appi/') === 0) { openAppi(); return; }
     var f = $('frameBox'), fr = $('frameSrc');
     fr.src = url;
     $('frameTitle').textContent = (curApp ? curApp.name : 'App') + ' · administración';
@@ -668,8 +674,557 @@
 
   // ---------- arranque ----------
   if (state.token) { enterApp(); loadAll().catch(function () { showLogin(); }); } else showLogin();
-})();
+/* ================================================================
+   PANEL APPI NATIVO — administración de APPI desde la Consola
+   Habla directo con el backend real de APPI (Supabase).
+   ================================================================ */
+var APPI_CONF = {
+  url: 'https://tqwnjfnaywjmyfplvatm.supabase.co',
+  key: 'sb_publishable_W45c429YK2D5QmVFjrfXEw_Qmw2bwcf',
+  email: 'admin-popups@appi.invalid'
+};
+if (!state.appi) state.appi = { at: '', rt: '', exp: 0, users: [], reqs: [], stats: null, settings: null, pagos: [], screen: 'resumen', q: '', openId: '', lastReq: null };
+function appiSave() { try { localStorage.setItem('popups_appi_admin_v1', JSON.stringify({ at: state.appi.at, rt: state.appi.rt, exp: state.appi.exp })); } catch (e) {} }
+function appiLoadSes() { try { var x = JSON.parse(localStorage.getItem('popups_appi_admin_v1')); if (x && x.at) { state.appi.at = x.at; state.appi.rt = x.rt || ''; state.appi.exp = x.exp || 0; } } catch (e) {} }
+function appiAuthed() { return !!state.appi.at; }
+function appiMoney(n) { return '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 }); }
+function appiFmt(iso) { if (!iso) return '—'; var p = String(iso).slice(0, 10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+function appiRndPass() {
+  var ls = 'abcdefghjkmnpqrstuvwxyz', us = 'ABCDEFGHJKMNPQRSTUVWXYZ', ds = '23456789';
+  var all = ls + us + ds, out = ls[Math.floor(Math.random() * ls.length)] + us[Math.floor(Math.random() * us.length)] + ds[Math.floor(Math.random() * ds.length)];
+  for (var i = 0; i < 6; i++) out += all[Math.floor(Math.random() * all.length)];
+  return out.split('').sort(function () { return Math.random() - .5; }).join('');
+}
+function appiDias(vence) { if (!vence) return null; var d = new Date(vence), h = Math.round((d - Date.now()) / 864e5); return h; }
+function appiEst(u) {
+  if (u.rol === 'admin') return { t: 'Admin', c: 'produccion' };
+  if (!u.activo) return { t: 'Bloqueada', c: 'pausada' };
+  if (!u.membresia_vence) return { t: 'Sin membresía', c: 'idea' };
+  var d = new Date(u.membresia_vence);
+  if (d.getFullYear() > 2099) return { t: 'Acceso permanente', c: 'produccion' };
+  var h = appiDias(u.membresia_vence);
+  if (h !== null && h < 0) return { t: 'Vencida', c: 'retirada' };
+  if (h !== null && h <= 7) return { t: 'Por vencer', c: 'mantenimiento' };
+  return { t: 'Activa', c: 'demo' };
+}
+function appiChip(t, c) { return '<span class="chip ' + esc(c) + '"><span class="dot"></span>' + esc(t) + '</span>'; }
+async function appiLogin(pw) {
+  var r = await fetch(APPI_CONF.url + '/auth/v1/token?grant_type=password', { method: 'POST', headers: { 'apikey': APPI_CONF.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: APPI_CONF.email, password: pw }) });
+  var d = await r.json().catch(function () { return {}; });
+  if (!d.access_token) throw new Error('Clave de administración incorrecta.');
+  state.appi.at = d.access_token; state.appi.rt = d.refresh_token || ''; state.appi.exp = Date.now() + (d.expires_in || 3600) * 1000;
+  appiSave();
+}
+async function appiRefresh() {
+  if (!state.appi.rt) throw new Error('NEED_LOGIN');
+  var r = await fetch(APPI_CONF.url + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: { 'apikey': APPI_CONF.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: state.appi.rt }) });
+  var d = await r.json().catch(function () { return {}; });
+  if (!d.access_token) throw new Error('NEED_LOGIN');
+  state.appi.at = d.access_token; state.appi.rt = d.refresh_token || state.appi.rt; state.appi.exp = Date.now() + (d.expires_in || 3600) * 1000;
+  appiSave();
+}
+async function appiToken() {
+  if (!state.appi.at) throw new Error('NEED_LOGIN');
+  if (state.appi.exp - Date.now() < 60000) { try { await appiRefresh(); } catch (e) { throw new Error('NEED_LOGIN'); } }
+  return state.appi.at;
+}
+async function appiCall(action, payload) {
+  var tok;
+  try { tok = await appiToken(); }
+  catch (e) { appiLogout(); appiRender(); throw new Error('La sesión de administración expiró. Ingresá la clave de nuevo.'); }
+  var r = await fetch(APPI_CONF.url + '/functions/v1/admin-distribuidores', { method: 'POST', headers: { 'apikey': APPI_CONF.key, 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action: action }, payload || {})) });
+  if (r.status === 401) {
+    try { await appiRefresh(); return appiCall(action, payload); }
+    catch (e2) { appiLogout(); appiRender(); throw new Error('La sesión expiró. Ingresá la clave de nuevo.'); }
+  }
+  var d = await r.json().catch(function () { return {}; });
+  if (!r.ok) throw new Error(d.error || d.message || 'No se pudo completar la operación.');
+  return d;
+}
+async function appiRpc(fn, args) {
+  var tok = await appiToken();
+  var r = await fetch(APPI_CONF.url + '/rest/v1/rpc/' + fn, { method: 'POST', headers: { 'apikey': APPI_CONF.key, 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: JSON.stringify(args || {}) });
+  var d = await r.json().catch(function () { return {}; });
+  if (!r.ok) throw new Error((d && (d.message || d.error)) || 'Error en la operación.');
+  return d;
+}
+async function appiCore() {
+  var out = await Promise.all([
+    appiCall('list'), appiCall('list_requests'), appiCall('membership_stats'), appiCall('get_settings'),
+    appiRpc('appi_admin_pagos', { p_meses: 24 })
+  ]);
+  state.appi.users = (out[0] && out[0].users) || [];
+  state.appi.reqs = (out[1] && out[1].requests) || [];
+  state.appi.stats = out[2] || {};
+  state.appi.settings = out[3] || { whatsapp: '' };
+  state.appi.pagos = out[4] || [];
+}
+function appiCopy(txt) { try { navigator.clipboard.writeText(txt); toast('Copiado al portapapeles'); } catch (e) {} }
+function appiWa(num, msg) {
+  var n = String(num || '').replace(/\D/g, '');
+  if (!n) { toast('No hay teléfono para enviar WhatsApp'); return; }
+  window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(msg), '_blank');
+}
+/* ---------- diálogo genérico ---------- */
+function appiDlgCancel() { closeOv(); }
+function appiDlgOpen(title, inner, okLabel, danger, onOk) {
+  var h = '<div style="display:flex;align-items:center;gap:8px;margin:2px 26px 12px 0"><b style="font-size:16px;color:#181b22">' + esc(title) + '</b></div>';
+  h += '<div id="appiDlgInner">' + inner + '</div>';
+  h += '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn ghost small" onclick="appiDlgCancel()">Cancelar</button>';
+  h += '<button class="btn small" id="appiDlgOk" style="' + (danger ? 'background:#c0392b;border-color:#c0392b;color:#fff' : 'background:var(--ink);color:#fff;border-color:var(--ink)') + '" onclick="appiDlgOkClick()">' + esc(okLabel || 'Aceptar') + '</button></div>';
+  $('appiDlgBody').innerHTML = h;
+  window._appiDlgOk = onOk; window._appiDlgDanger = !!danger;
+  openOv('appiDlg');
+}
+function appiDlgOkClick() {
+  var okFn = window._appiDlgOk;
+  var errEl = $('appiDlgErr');
+  if (errEl) errEl.remove();
+  if (okFn) {
+    try {
+      var res = okFn();
+      if (res && res.then) res.catch(function (e) { appiDlgShowErr(e.message); });
+    } catch (e) { appiDlgShowErr(e.message); }
+  }
+}
+function appiDlgBusy(on) {
+  var b = $('appiDlgOk'); if (!b) return;
+  if (on) { if (!b.dataset.t) b.dataset.t = b.textContent; b.disabled = true; b.textContent = 'Procesando…'; }
+  else { if (b.dataset.t) { b.disabled = false; b.textContent = b.dataset.t; delete b.dataset.t; } }
+}
+function appiDlgShowErr(m) { appiDlgBusy(false);
+  var e = document.createElement('p');
+  e.id = 'appiDlgErr'; e.className = 'aerr'; e.textContent = m;
+  var inner = $('appiDlgInner'); if (inner) inner.appendChild(e);
+}
+function appiConfirm(title, text, okLabel, danger, onYes) {
+  appiDlgOpen(title, '<p style="font-size:13.5px;line-height:1.6;color:#3c3f48">' + text + '</p>', okLabel, danger, function () { if (onYes) onYes(); });
+}
+function appiForm(title, rows, okLabel, onOk) {
+  var inner = '';
+  rows.forEach(function (f) {
+    var opts = '';
+    if (f.type === 'select') (f.opts || []).forEach(function (o) { opts += '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(f.value == null ? '' : f.value) ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; });
+    var val = f.value == null ? '' : esc(String(f.value));
+    var inp = f.type === 'textarea'
+      ? '<textarea data-k="' + esc(f.k) + '" placeholder="' + esc(f.ph || '') + '">' + val + '</textarea>'
+      : f.type === 'select'
+        ? '<select data-k="' + esc(f.k) + '">' + opts + '</select>'
+        : '<input data-k="' + esc(f.k) + '" type="' + (f.type || 'text') + '" value="' + val + '" placeholder="' + esc(f.ph || '') + '"' + (f.max ? ' maxlength="' + f.max + '"' : '') + '>';
+    inner += '<div class="afld"><label>' + esc(f.label) + (f.req ? ' *' : '') + '</label>' + inp + (f.hint ? '<div class="hint">' + f.hint + '</div>' : '') + '</div>';
+  });
+  appiDlgOpen(title, inner, okLabel, false, function () {
+    var data = {};
+    document.querySelectorAll('#appiDlgInner [data-k]').forEach(function (el) { data[el.dataset.k] = el.value; });
+    onOk(data);
+  });
+}
+/* ---------- pantallas ---------- */
+function openAppi() {
+  appiLoadSes();
+  if (!appiAuthed()) { state.appi.screen = 'conectar'; appiRender(); return; }
+  appiRender();
+  if (!state.appi.stats) {
+    var v = $('view-appi');
+    v.innerHTML = '<div style="padding:60px;text-align:center;color:#9aa1ad">Conectando con APPI…</div>';
+    appiCore().then(function () { appiRender(); }).catch(function (e) { appiLogout(); appiRender(); toast(e.message); });
+  }
+}
+function appiLogout() { state.appi.at = ''; state.appi.rt = ''; state.appi.exp = 0; try { localStorage.removeItem('popups_appi_admin_v1'); } catch (e) {} }
+function appiRender() {
+  var v = $('view-appi'); if (!v) return;
+  if (!appiAuthed()) { appiRenderConnect(); return; }
+  var st = state.appi.stats || {};
+  var pend = state.appi.reqs.length;
+  var nav = '<div class="asub">' +
+    '<button class="' + (state.appi.screen === 'resumen' ? 'active' : '') + '" onclick="appiGo(\'resumen\')">Resumen</button>' +
+    '<button class="' + (state.appi.screen === 'solicitudes' ? 'active' : '') + '" onclick="appiGo(\'solicitudes\')">Solicitudes' + (pend ? ' <b style="color:#c0392b">(' + pend + ')</b>' : '') + '</button>' +
+    '<button class="' + (state.appi.screen === 'cuentas' ? 'active' : '') + '" onclick="appiGo(\'cuentas\')">Cuentas</button>' +
+    '<button class="' + (state.appi.screen === 'ingresos' ? 'active' : '') + '" onclick="appiGo(\'ingresos\')">Ingresos</button>' +
+    '<button class="' + (state.appi.screen === 'config' ? 'active' : '') + '" onclick="appiGo(\'config\')">Configuración</button></div>';
+  var head = '<div class="hero" style="padding-bottom:6px"><span class="kicker">Ecosistema POPUPS · APPI</span><h1>Panel de <em>administración</em>.</h1><p>Manejás APPI directo desde la consola: cuentas, solicitudes, membresías e ingresos. Conectado como <b>' + esc(APPI_CONF.email) + '</b></p><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn ghost small" onclick="appiGo(\'config\')">⚙ Ajustes</button><button class="btn ghost small" style="color:#c0392b" onclick="appiLogout();appiRender();toast(\'Sesión de APPI cerrada\')">Salir de la sesión APPI</button></div></div>';
+  var kpi = '<div class="astats">' +
+    '<div class="astat"><small>Ingresos del mes</small><b style="color:#1d7a3e">' + appiMoney(st.monthly_revenue) + '</b></div>' +
+    '<div class="astat"><small>Ingresos totales</small><b>' + appiMoney(st.total_revenue) + '</b></div>' +
+    '<div class="astat"><small>Cuentas activas</small><b>' + (st.active_users == null ? '—' : st.active_users) + '</b></div>' +
+    '<div class="astat"><small>En prórroga</small><b>' + (st.grace_period_users == null ? '—' : st.grace_period_users) + '</b></div>' +
+    '<div class="astat"><small>Vencidas</small><b style="color:#c0392b">' + (st.expired_users == null ? '—' : st.expired_users) + '</b></div>' +
+    '<div class="astat"><small>Solicitudes</small><b style="color:' + (pend ? '#c0392b' : '#1d7a3e') + '">' + pend + '</b></div></div>';
+  var body = '';
+  if (state.appi.screen === 'resumen') body = appiResumen();
+  else if (state.appi.screen === 'solicitudes') body = appiSolicitudes();
+  else if (state.appi.screen === 'cuentas') body = appiCuentas();
+  else if (state.appi.screen === 'ingresos') body = appiIngresos();
+  else if (state.appi.screen === 'config') body = appiConfig();
+  v.innerHTML = head + nav + kpi + body;
+}
+function appiGo(s) { state.appi.screen = s; appiRender(); }
+/* -------- Resumen -------- */
+function appiResumen() {
+  var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="abtn pri" onclick="appiNuevaCuenta()">＋ Alta de cuenta</button><button class="abtn" onclick="appiGo(\'solicitudes\')">Revisar solicitudes</button><button class="abtn" onclick="appiGo(\'ingresos\')">Ver ingresos</button></div>';
+  h += '<div class="aresum" style="font-size:13px">El panel replica las funciones de la administración de APPI. Las acciones se aplican <b>en la base real de APPI</b>: los distribuidores lo ven al instante.</div>';
+  if (state.appi.reqs.length) {
+    h += '<div style="border:1px solid #e5b8b2;background:#fdf3f2;border-radius:14px;padding:12px 14px;margin-bottom:12px"><b style="color:#a93226">Hay ' + state.appi.reqs.length + ' solicitud' + (state.appi.reqs.length > 1 ? 'es' : '') + ' pendiente' + (state.appi.reqs.length > 1 ? 's' : '') + ' de acceso.</b> <button class="abtn dng" style="margin-left:8px" onclick="appiGo(\'solicitudes\')">Revisar</button></div>';
+  }
+  var pagos = (state.appi.pagos || []).slice().reverse().slice(0, 5);
+  h += '<div class="aresum"><b>Últimos pagos registrados</b></div>';
+  if (!pagos.length) h += '<p style="color:#9aa1ad;font-size:13px">Todavía no hay pagos registrados.</p>';
+  pagos.forEach(function (p) {
+    h += '<div class="arow"><div class="grow"><span class="nm">' + esc(p.nombre || '—') + '</span><div class="sub">' + esc(p.dip || '') + ' · ' + esc(p.metodo || '') + ' · ' + appiFmt(p.fecha) + (p.notas ? ' · ' + esc(p.notas) : '') + '</div></div><b style="color:#1d7a3e">' + appiMoney(p.monto) + '</b></div>';
+  });
+  return h;
+}
+/* -------- Solicitudes -------- */
+function appiReqInfo(r) {
+  return { name: r.nombre || r.titular || '—', dip: r.dip || (r.sucursal && r.numero_distribuidor ? r.sucursal + '-' + r.numero_distribuidor : (r.numero ? 'dist. ' + r.numero : '')) || '—', tel: r.telefono || '', id: r.request_id || r.id || r.user_id, fecha: r.created_at || r.solicitada || '' };
+}
+function appiSolicitudes() {
+  var h = '';
+  if (!state.appi.reqs.length) {
+    h += '<div style="border:1px dashed #cdd3dd;border-radius:16px;padding:44px 20px;text-align:center"><div style="font-size:30px">🎉</div><b style="display:block;margin:8px 0 4px">No hay solicitudes pendientes</b><p style="color:#9aa1ad;font-size:13px;margin:0">Cuando un distribuidor pida acceso a APPI, va a aparecer acá para aprobarla o rechazarla.</p></div>';
+    return h;
+  }
+  state.appi.reqs.forEach(function (r, i) {
+    var inf = appiReqInfo(r);
+    h += '<div class="arow"><div class="grow"><span class="nm">' + esc(inf.name) + '</span><div class="sub">Distribuidor ' + esc(inf.dip) + (inf.tel ? ' · 📱 ' + esc(inf.tel) : '') + ' · pidió el ' + appiFmt(inf.fecha) + '</div></div>' +
+      '<button class="abtn pri" onclick="appiAprobar(' + i + ')">Aprobar</button><button class="abtn dng" onclick="appiRechazar(' + i + ')">Rechazar</button></div>';
+  });
+  return h;
+}
+function appiAprobar(i) {
+  var r = state.appi.reqs[i]; if (!r) return;
+  var inf = appiReqInfo(r);
+  appiForm('Aprobar solicitud · ' + inf.name, [
+    { k: 'plan', label: 'Membresía inicial', type: 'select', value: '1', opts: [['prueba', '🧪 Prueba · 5 días'], ['1', '1 mes'], ['2', '2 meses'], ['3', '3 meses'], ['6', '6 meses'], ['12', '12 meses'], ['siempre', '♾️ Para siempre']] },
+    { k: 'password', label: 'Contraseña temporal', type: 'text', value: appiRndPass(), req: true, hint: 'La persona deberá cambiarla obligatoriamente en su primer ingreso.' }
+  ], 'Crear cuenta', function (d) {
+    if (!d.password || d.password.length < 8 || !/[A-Za-z]/.test(d.password) || !/[0-9]/.test(d.password)) throw new Error('La contraseña temporal necesita 8 caracteres, letras y números.');
+    var plan = d.plan, esPrueba = plan === 'prueba', esSiempre = plan === 'siempre';
+    appiDlgBusy(true);
+    appiCall('approve_request', { request_id: inf.id, password: d.password, membership_months: (esPrueba || esSiempre) ? 1 : parseInt(plan, 10) }).then(function (res) {
+      var uid = res.user && res.user.user_id;
+      function doRpc() {
+        if (!uid) return Promise.resolve();
+        return appiRpc(esPrueba ? 'appi_admin_activar_prueba' : 'appi_admin_para_siempre', { p_user_id: uid });
+      }
+      return doRpc().then(function () {
+        appiDlgCancel();
+        var txt = 'APPI\nDistribuidor: ' + (res.user && res.user.dip || inf.dip) + '\nTitular: ' + (res.user && res.user.nombre || inf.name) + (res.user && res.user.socio_nombre ? '\nSocio/a: ' + res.user.socio_nombre : '') + '\nContraseña temporal: ' + d.password;
+        appiConfirm('Cuenta aprobada ✓', 'Contraseña temporal de la cuenta:<br><span class="acopy" onclick="appiCopy(this.textContent)">' + esc(d.password) + '</span><br><small>La persona deberá cambiarla al ingresar por primera vez.</small>' + (inf.tel ? '<br><br><button class="abtn pri" onclick="appiWa(\'' + esc(inf.tel) + '\',\'' + txt.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, '\\n') + '\')">Enviar credenciales por WhatsApp ↗</button>' : ''), 'Listo', false, function () { appiGo('solicitudes'); });
+        return appiCore().then(appiRender);
+      });
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+function appiRechazar(i) {
+  var r = state.appi.reqs[i]; if (!r) return;
+  var inf = appiReqInfo(r);
+  appiConfirm('Rechazar solicitud', 'La solicitud de <b>' + esc(inf.name) + '</b> (' + esc(inf.dip) + ') quedará rechazada. ¿Seguimos?', 'Rechazar', true, function () {
+    appiCall('reject_request', { request_id: inf.id }).then(function () {
+      toast('Solicitud rechazada'); appiDlgCancel();
+      return appiCore().then(appiRender);
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+/* -------- Cuentas -------- */
+function appiCuentas() {
+  var q = (state.appi.q || '').toLowerCase();
+  var list = state.appi.users.filter(function (u) { return !q || (u.nombre || '').toLowerCase().indexOf(q) >= 0 || (u.dip || '').indexOf(q) >= 0 || (u.numero_distribuidor || '').indexOf(q) >= 0; });
+  var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center"><input id="appiQ" value="' + esc(state.appi.q) + '" placeholder="🔎 Buscar por nombre o DIP…" oninput="appiQChange(this.value)" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid #d7dbe3;border-radius:10px;font-size:13px"><button class="abtn pri" onclick="appiNuevaCuenta()">＋ Alta de cuenta</button></div>';
+  h += '<p style="color:#9aa1ad;font-size:12px;margin:0 0 10px">' + list.length + ' cuentas</p>';
+  if (!list.length) h += '<div style="border:1px dashed #cdd3dd;border-radius:16px;padding:30px;text-align:center;color:#9aa1ad">No se encontraron cuentas.</div>';
+  list.forEach(function (u) {
+    var est = appiEst(u);
+    var dias = (u.membresia_vence && est.c !== 'produccion') ? appiDias(u.membresia_vence) : null;
+    var sub = esc(u.dip || '') + ' · ' + esc(u.rol === 'admin' ? 'cuenta de POPUPS' : (u.nombre || '—')) + (u.socio_nombre ? ' · socio/a: ' + esc(u.socio_nombre) : '');
+    if (u.membresia_vence && dias !== null) sub += ' · vence ' + appiFmt(u.membresia_vence) + (dias < 0 ? '' : ' (' + dias + 'd)');
+    var open = state.appi.openId === u.user_id;
+    var acts = '';
+    if (u.rol !== 'admin') {
+      acts += '<button class="abtn pri" onclick="appiMes(' + "'" + u.user_id + "'" + ')">＋ 1 mes</button>' +
+        '<button class="abtn" onclick="appiProrroga(' + "'" + u.user_id + "'" + ')">Prórroga</button>' +
+        '<button class="abtn" onclick="appiPago(' + "'" + u.user_id + "'" + ')">Registrar pago</button>' +
+        '<button class="abtn" onclick="appiSiempre(' + "'" + u.user_id + "'" + ')">♾ Para siempre</button>' +
+        '<button class="abtn" onclick="appiPrueba(' + "'" + u.user_id + "'" + ')">🧪 Prueba 5 días</button>' +
+        '<button class="abtn" onclick="appiPersonas(' + "'" + u.user_id + "'" + ')">👥 Personas</button>' +
+        '<button class="abtn" onclick="appiClave(' + "'" + u.user_id + "'" + ')">🔐 Contraseña</button>';
+      acts += u.activo
+        ? '<button class="abtn dng" onclick="appiBloquear(' + "'" + u.user_id + "'" + ',false)">Bloquear</button>'
+        : '<button class="abtn" style="color:#1d7a3e" onclick="appiBloquear(' + "'" + u.user_id + "'" + ',true)">Activar</button>';
+      acts += '<button class="abtn dng" onclick="appiBorrar(' + "'" + u.user_id + "'" + ')">Eliminar</button>';
+    } else acts = '<span style="color:#9aa1ad;font-size:12px">La cuenta administradora no se administra acá.</span>';
+    h += '<div class="arow"><div class="grow"><span class="nm">' + esc(u.nombre || u.username || u.dip) + ' ' + appiChip(est.t, est.c) + (u.debe_cambiar_password ? ' ' + appiChip('Debe cambiar clave', 'mantenimiento') : '') + '</span><div class="sub">' + sub + '</div></div>' +
+      '<button class="abtn" onclick="appiToggleMenu(' + "'" + u.user_id + "'" + ')">' + (open ? '▲ Cerrar' : '⋯ Acciones') + '</button>' +
+      (open ? '<div class="amenu"><div class="in">' + acts + '</div></div>' : '') + '</div>';
+  });
+  return h;
+}
+function appiQChange(v) { state.appi.q = v; appiRender(); }
+function appiToggleMenu(id) { state.appi.openId = state.appi.openId === id ? '' : id; appiRender(); }
+function appiMes(uid) {
+  appiConfirm('Dar 1 mes completo', 'La cuenta va a sumar <b>1 mes completo</b> de APPI desde su vencimiento actual. ¿Confirmás?', 'Dar 1 mes', false, function () {
+    appiCall('grant_month', { user_id: uid }).then(function (d) {
+      appiDlgCancel();
+      toast('1 mes otorgado' + (d && d.expires_at ? ' · vence ' + appiFmt(d.expires_at) : ''));
+      return appiCore().then(appiRender);
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+function appiProrroga(uid) {
+  var hoy = new Date(); var iso = hoy.toISOString().slice(0, 10);
+  appiForm('Prórroga', [
+    { k: 'hasta', label: 'Prórroga hasta', type: 'date', value: iso, req: true },
+    { k: 'notas', label: 'Notas', type: 'textarea', ph: 'Motivo de la prórroga (opcional)' }
+  ], 'Guardar prórroga', function (d) {
+    if (!d.hasta) throw new Error('Elegí la fecha hasta la que se prorroga.');
+    appiCall('set_grace_period', { user_id: uid, grace_period_until: d.hasta + 'T23:59:59', notes: d.notas }).then(function () {
+      toast('Prórroga guardada'); appiDlgCancel();
+      return appiCore().then(appiRender);
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+function appiPago(uid) {
+  var u = state.appi.users.find(function (x) { return x.user_id === uid; });
+  appiForm('Registrar pago · ' + (u ? u.nombre : ''), [
+    { k: 'monto', label: 'Monto ($)', type: 'number', value: '50000', req: true },
+    { k: 'metodo', label: 'Método de pago', type: 'select', value: 'transferencia', opts: [['transferencia', 'Transferencia'], ['efectivo', 'Efectivo'], ['mercadopago', 'Mercado Pago'], ['otro', 'Otro']] },
+    { k: 'notas', label: 'Notas', type: 'textarea', ph: 'Opcional' }
+  ], 'Registrar pago', function (d) {
+    if (!d.monto || Number(d.monto) <= 0) throw new Error('Ingresá un monto válido.');
+    var b = $('appiDlgOk'); b.disabled = true; b.textContent = 'Guardando…';
+    appiCall('register_membership_payment', { user_id: uid, amount: Number(d.monto), payment_method: d.metodo, notes: d.notas }).then(function () {
+      toast('Pago de ' + appiMoney(d.monto) + ' registrado ✓'); appiDlgCancel();
+      return appiCore().then(appiRender);
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+function appiSiempre(uid) {
+  var u = state.appi.users.find(function (x) { return x.user_id === uid; });
+  appiConfirm('Acceso permanente', '<b>' + esc((u && u.nombre) || '') + '</b> pasará a tener <b>acceso permanente</b> a APPI. ¿Confirmás?', 'Dar acceso permanente', false, function () {
+    appiRpc('appi_admin_para_siempre', { p_user_id: uid }).then(function () {
+      toast('Acceso permanente otorgado ♾'); appiDlgCancel();
+      return appiCore().then(appiRender);
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+function appiPrueba(uid) {
+  var u = state.appi.users.find(function (x) { return x.user_id === uid; });
+  appiConfirm('Modo prueba', '<b>' + esc((u && u.nombre) || '') + '</b> pasará a <b>modo PRUEBA por 5 días</b>. Su membresía actual se pisa y verá la franja de versión de prueba. ¿Seguimos?', 'Activar prueba', false, function () {
+    appiRpc('appi_admin_activar_prueba', { p_user_id: uid }).then(function () {
+      toast('Modo PRUEBA activado por 5 días 🧪'); appiDlgCancel();
+      return appiCore().then(appiRender);
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+function appiPersonas(uid) {
+  var u = state.appi.users.find(function (x) { return x.user_id === uid; });
+  if (!u) return;
+  appiForm('Editar personas', [
+    { k: 'nombre', label: 'Nombre y apellido del titular', type: 'text', value: u.nombre || '', req: true },
+    { k: 'socio', label: 'Socio/a de la cuenta', type: 'text', value: u.socio_nombre || '', ph: 'Dejalo vacío si no tiene socio/a' }
+  ], 'Guardar', function (d) {
+    if (!d.nombre.trim()) throw new Error('El nombre del titular es obligatorio.');
+    appiCall('update_people', { user_id: uid, nombre: String(d.nombre).trim(), socio_nombre: String(d.socio).trim() }).then(function () {
+      toast('Personas actualizadas'); appiDlgCancel();
+      return appiCore().then(appiRender);
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+function appiClave(uid) {
+  var pass = appiRndPass();
+  appiForm('Nueva contraseña temporal', [
+    { k: 'password', label: 'Contraseña temporal', type: 'text', value: pass, req: true, hint: 'Se copiará al portapapeles y el distribuidor deberá cambiarla al ingresar.' }
+  ], 'Actualizar', function (d) {
+    if (!d.password || d.password.length < 8 || !/[A-Za-z]/.test(d.password) || !/[0-9]/.test(d.password)) throw new Error('La contraseña necesita 8 caracteres, letras y números.');
+    appiCall('set_password', { user_id: uid, password: d.password }).then(function () {
+      appiDlgCancel(); appiCopy(d.password);
+      appiConfirm('Contraseña actualizada', 'La nueva contraseña temporal ya fue copiada al portapapeles:<br><span class="acopy" onclick="appiCopy(this.textContent)">' + esc(d.password) + '</span>', 'Listo', false, function () { appiGo('cuentas'); });
+      return appiCore().then(appiRender);
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+function appiBloquear(uid, activar) {
+  var u = state.appi.users.find(function (x) { return x.user_id === uid; });
+  var nom = esc((u && (u.nombre || u.dip)) || '');
+  appiConfirm(activar ? 'Activar cuenta' : 'Bloquear cuenta', activar ? '¿Activar la cuenta de <b>' + nom + '</b>?' : '¿Bloquear la cuenta de <b>' + nom + '</b>? No va a poder entrar a APPI hasta que la actives.', activar ? 'Activar' : 'Bloquear', !activar, function () {
+    appiCall('set_active', { user_id: uid, activo: activar }).then(function () {
+      toast(activar ? 'Cuenta activada' : 'Cuenta bloqueada'); appiDlgCancel();
+      return appiCore().then(appiRender);
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+function appiBorrar(uid) {
+  var u = state.appi.users.find(function (x) { return x.user_id === uid; });
+  appiConfirm('Eliminar cuenta', 'Se eliminará <b>definitivamente</b> la cuenta de <b>' + esc((u && (u.nombre || u.dip)) || '') + '</b> y sus datos asociados. Esta acción no se puede deshacer.', 'Eliminar', true, function () {
+    appiCall('delete_user', { user_id: uid }).then(function () {
+      toast('Cuenta eliminada'); appiDlgCancel();
+      return appiCore().then(appiRender);
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+function appiNuevaCuenta() {
+  appiForm('Alta de cuenta', [
+    { k: 'suc', label: 'Sucursal', type: 'text', value: '02', max: 2, req: true, hint: 'Código de 2 dígitos' },
+    { k: 'num', label: 'Número de distribuidor', type: 'text', max: 12, req: true, ph: 'Ej: 10000337' },
+    { k: 'nombre', label: 'Nombre y apellido del titular', type: 'text', req: true },
+    { k: 'socio', label: 'Socio/a de la cuenta', type: 'text', ph: 'Opcional' },
+    { k: 'plan', label: 'Membresía inicial', type: 'select', value: '1', opts: [['prueba', '🧪 Prueba · 5 días'], ['1', '1 mes'], ['2', '2 meses'], ['3', '3 meses'], ['6', '6 meses'], ['12', '12 meses'], ['siempre', '♾️ Para siempre']] },
+    { k: 'password', label: 'Contraseña temporal', type: 'text', value: appiRndPass(), req: true, hint: 'La persona deberá cambiarla en su primer ingreso.' }
+  ], 'Crear cuenta', function (d) {
+    var suc = String(d.suc || '').replace(/\D/g, ''), num = String(d.num || '').replace(/\D/g, '');
+    if (suc.length !== 2) throw new Error('La sucursal debe tener 2 dígitos (ej: 02).');
+    if (!num.length) throw new Error('Ingresá el número de distribuidor.');
+    if (!d.nombre.trim()) throw new Error('Ingresá el nombre del titular.');
+    if (!d.password || d.password.length < 8 || !/[A-Za-z]/.test(d.password) || !/[0-9]/.test(d.password)) throw new Error('La contraseña temporal necesita 8 caracteres, letras y números.');
+    var plan = d.plan, esPrueba = plan === 'prueba', esSiempre = plan === 'siempre';
+    appiDlgBusy(true);
+    appiCall('create', { dip: suc + '-' + num, nombre: d.nombre.trim(), socio_nombre: String(d.socio || '').trim(), password: d.password, membership_months: (esPrueba || esSiempre) ? 1 : parseInt(plan, 10) }).then(function (res) {
+      var uid = res.user && res.user.user_id;
+      function rpcPlan() { if (!uid || (!esPrueba && !esSiempre)) return Promise.resolve(); return appiRpc(esPrueba ? 'appi_admin_activar_prueba' : 'appi_admin_para_siempre', { p_user_id: uid }); }
+      return rpcPlan().then(function () {
+        appiDlgCancel();
+        var nom = (res.user && res.user.nombre) || d.nombre.trim();
+        appiConfirm('Cuenta creada ✓', 'Cuenta de <b>' + esc(nom) + '</b> (' + esc(suc + '-' + num) + ') creada.<br>Contraseña temporal:<br><span class="acopy" onclick="appiCopy(this.textContent)">' + esc(d.password) + '</span><br><small>La persona deberá cambiarla en su primer ingreso.</small>', 'Listo', false, function () { appiGo('cuentas'); });
+        return appiCore().then(appiRender);
+      });
+    }).catch(function (e) { appiDlgShowErr(e.message); });
+  });
+}
+/* -------- Ingresos -------- */
+function appiIngresos() {
+  var pagos = state.appi.pagos || [];
+  var h = '';
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  var porMes = {};
+  pagos.forEach(function (p) {
+    var k = String(p.fecha || '').slice(0, 7);
+    if (!k) return;
+    if (!porMes[k]) porMes[k] = { n: 0, total: 0 };
+    porMes[k].n++; porMes[k].total += Number(p.monto) || 0;
+  });
+  var ks = Object.keys(porMes).sort().reverse();
+  var totalGral = 0; pagos.forEach(function (p) { totalGral += Number(p.monto) || 0; });
+  h += '<div class="aresum"><b>' + pagos.length + ' pagos registrados · total ' + appiMoney(totalGral) + '</b></div>';
+  if (!pagos.length) { h += '<div style="border:1px dashed #cdd3dd;border-radius:16px;padding:30px;text-align:center;color:#9aa1ad">Todavía no hay pagos registrados. Cuando registres uno en Cuentas, aparece acá.</div>'; return h; }
+  h += '<table class="atable"><thead><tr><th>Mes</th><th>Pagos</th><th style="text-align:right">Total</th></tr></thead><tbody>';
+  ks.forEach(function (k) {
+    var sp = k.split('-');
+    h += '<tr><td>' + MESES[(+sp[1]) - 1] + ' ' + sp[0] + '</td><td>' + porMes[k].n + '</td><td style="text-align:right;font-weight:700">' + appiMoney(porMes[k].total) + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  h += '<div style="height:14px"></div><div class="aresum"><b>Detalle de pagos (últimos 24 meses)</b></div>';
+  var det = pagos.slice().reverse();
+  det.forEach(function (p) {
+    h += '<div class="arow"><div class="grow"><span class="nm">' + esc(p.nombre || '—') + '</span><div class="sub">' + esc(p.dip || '') + ' · ' + esc(p.metodo || '') + ' · ' + appiFmt(p.fecha) + (p.notas ? ' · ' + esc(p.notas) : '') + '</div></div><b style="color:#1d7a3e">' + appiMoney(p.monto) + '</b></div>';
+  });
+  return h;
+}
+/* -------- Configuración -------- */
+function appiConfig() {
+  var s = state.appi.settings || {};
+  var h = '<div class="aresum"><b>WhatsApp de contacto</b><p style="margin:6px 0 10px;color:#5b5f6b">Es el número que usa APPI para el contacto de soporte y cobranzas.</p>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="appiWaIn" value="' + esc(s.whatsapp || '') + '" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid #d7dbe3;border-radius:10px;font-size:13px" placeholder="5493510000000"><button class="abtn pri" onclick="appiSaveWa()">Guardar</button></div></div>';
+  h += '<div class="aresum"><b>Sesión de administración</b><p style="margin:6px 0;color:#5b5f6b">Conectado como <b>' + esc(APPI_CONF.email) + '</b>. La clave no se guarda en ningún lado: solo la sesión (1 hora, se renueva sola).</p>' +
+    '<button class="abtn dng" onclick="appiLogout();appiRender();toast(\'Sesión de APPI cerrada\')">Cerrar sesión de APPI</button></div>';
+  h += '<div class="aresum"><b>¿Cómo funciona?</b><p style="margin:6px 0 0;color:#5b5f6b;line-height:1.7">Este panel habla directo con el backend de administración de APPI (la misma cuenta que usaba el candado 🔒 de la app).<br>Todo lo que hagas acá se aplica al momento en la base real: los distribuidores lo ven al instante.<br><br>Próximo paso (cuando confirmes que funciona): <b>sacamos el candado 🔒 de la app de APPI</b> y queda solo para usuarios. La administración pasa a vivir únicamente acá.</p></div>';
+  return h;
+}
+function appiSaveWa() {
+  var num = String($('appiWaIn').value || '').replace(/\D/g, '');
+  if (!num) { toast('Ingresá un número válido'); return; }
+  var b = document.querySelector('#view-appi .abtn.pri'); if (b) { b.disabled = true; }
+  appiCall('set_whatsapp', { numero: num }).then(function (d) {
+    state.appi.settings = { whatsapp: d.whatsapp || num };
+    toast('Número de WhatsApp actualizado ✓'); appiRender();
+  }).catch(function (e) { toast(e.message); if (b) b.disabled = false; });
+}
+/* -------- Conectar -------- */
+function appiRenderConnect() {
+  var v = $('view-appi');
+  v.innerHTML = '<div class="hero"><span class="kicker">Ecosistema POPUPS · APPI</span><h1>Administración de APPI<br><em>dentro de la consola.</em></h1><p>Acá vas a manejar APPI sin entrar a la app: solicitudes de acceso, cuentas de distribuidores, membresías, ingresos y configuración. La app queda <b>solo para los usuarios</b>.</p></div>' +
+    '<div class="card" style="max-width:430px;margin:auto;padding:22px"><b style="font-size:15px">Conectarse al panel de APPI</b><p style="color:#9aa1ad;font-size:12.5px;margin:6px 0 14px">Cuenta: <b style="color:#3c3f48">' + esc(APPI_CONF.email) + '</b><br>La clave no se guarda: solo la sesión activa.</p>' +
+    '<form onsubmit="appiConnect(this);return false"><label class="field">Clave de administración de POPUPS<input name="pw" type="password" autocomplete="current-password" style="width:100%;box-sizing:border-box" required></label>' +
+    '<p class="form-error" id="appiConnErr"></p><button class="btn acc" style="width:100%;justify-content:center" type="submit" id="appiConnBtn">Conectar</button></form></div>';
+}
+async function appiConnect(f) {
+  var err = $('appiConnErr'), btn = $('appiConnBtn');
+  if (err) err.textContent = ''; btn.disabled = true; btn.textContent = 'Conectando…';
+  try {
+    await appiLogin(f.pw.value);
+    await appiCore();
+    appiRender(); toast('Conectado al panel de APPI ✓');
+  } catch (e) {
+    if (err) err.textContent = e.message;
+    btn.disabled = false; btn.textContent = 'Conectar';
+  }
+}
 
-</script></script>
+  // exponer funciones del panel APPI para los atributos onclick
+  window.appiAprobar = appiAprobar;
+  window.appiBloquear = appiBloquear;
+  window.appiBorrar = appiBorrar;
+  window.appiClave = appiClave;
+  window.appiConnect = appiConnect;
+  window.appiCopy = appiCopy;
+  window.appiDlgCancel = appiDlgCancel;
+  window.appiDlgOkClick = appiDlgOkClick;
+  window.appiGo = appiGo;
+  window.appiLogout = appiLogout;
+  window.appiMes = appiMes;
+  window.appiNuevaCuenta = appiNuevaCuenta;
+  window.appiPago = appiPago;
+  window.appiPersonas = appiPersonas;
+  window.appiProrroga = appiProrroga;
+  window.appiPrueba = appiPrueba;
+  window.appiQChange = appiQChange;
+  window.appiRechazar = appiRechazar;
+  window.appiRender = appiRender;
+  window.appiSaveWa = appiSaveWa;
+  window.appiSiempre = appiSiempre;
+  window.appiToggleMenu = appiToggleMenu;
+  window.appiWa = appiWa;
+  window.openAppi = openAppi;
+})();
+</script>
+<!-- Diálogo genérico del panel APPI -->
+<div class="ov" id="appiDlg">
+  <div class="sheet" style="max-width:460px">
+    <button type="button" data-close style="position:absolute;top:14px;right:14px;width:32px;height:32px;border:0;border-radius:50%;background:rgba(120,130,150,.12);color:#5b5f6b;font-size:19px;cursor:pointer;line-height:1" onclick="appiDlgCancel()">✕</button>
+    <div id="appiDlgBody"></div>
+  </div>
+</div>
+
+<style>
+  /* Panel APPI */
+  .asub{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+  .asub button{padding:8px 15px;border-radius:999px;border:1px solid var(--line);background:#fff;color:#3c3f48;font-size:13px;font-weight:600;cursor:pointer}
+  .asub button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .astats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 18px}
+  .astat{border:1px solid var(--line);border-radius:14px;padding:13px 15px;background:#fff}
+  .astat small{display:block;color:#9aa1ad;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+  .astat b{font-size:20px;color:#181b22}
+  .arow{border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .arow .grow{flex:1;min-width:150px}
+  .arow .nm{font-weight:800;color:#181b22;font-size:14px}
+  .arow .sub{color:#9aa1ad;font-size:12px;margin-top:2px}
+  .abtn{padding:7px 12px;border-radius:9px;border:1px solid var(--line);background:#fff;font-size:12px;font-weight:700;cursor:pointer}
+  .abtn:hover{border-color:#c9cdd6}
+  .abtn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .abtn.dng{color:#c0392b;border-color:#e5b8b2}
+  .amenu{flex-basis:100%}
+  .amenu .in{display:flex;flex-wrap:wrap;gap:6px;padding-top:10px;border-top:1px dashed var(--line);margin-top:10px}
+  .afld{margin-bottom:11px}
+  .afld label{display:block;font-size:11.5px;font-weight:700;color:#6a6f7a;margin-bottom:5px}
+  .afld input,.afld select,.afld textarea{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #d7dbe3;border-radius:10px;font-size:13.5px;font-family:inherit}
+  .afld input:focus,.afld select:focus,.afld textarea:focus{outline:2px solid rgba(24,27,34,.15);border-color:var(--ink)}
+  .afld .hint{font-size:11px;color:#9aa1ad;margin-top:4px;line-height:1.4}
+  .aerr{color:#c0392b;font-size:12px;font-weight:600;margin:6px 0}
+  .acopy{cursor:pointer;background:#f4f6fa;border:1px dashed #cdd3dd;padding:7px 9px;border-radius:8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all;user-select:all}
+  .aresum{background:#f6f8fb;border:1px solid #e3e8f0;border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.6;margin:8px 0}
+  .atable{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:13px}
+  .atable th{background:#f6f8fb;color:#6a6f7a;font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:9px 11px;text-align:left}
+  .atable td{padding:9px 11px;border-top:1px solid #eef0f4;color:#2a2d35}
+</style>
+
 </body>
 </html>
