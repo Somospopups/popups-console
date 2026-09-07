@@ -97,3 +97,6 @@
 - Al **vender una tienda nueva** se elige el plan del dueño. Cada tienda muestra su plan con un **selector para cambiarlo** (subir/bajar) cuando el dueño paga la diferencia.
 - Nueva tarjeta **"Recurrente/mes"**: suma lo que factura la app con las tiendas activas.
 - Los planes están definidos en una sola lista (`MT_PLANS`) para ajustar precios en un solo lugar. El límite real de productos se aplicará en la tienda cuando conectemos la nube (Fase 2).
+
+## v0.14.1 · 2026-09-07
+- **Tope máximo de 200 productos**: el plan más caro ya no es "ilimitado". Nadie puede cargar más de 200 productos en una tienda, así ningún cliente llena la base ni el almacenamiento. Por encima de 200 no hay plan automático: el caso se atiende con POPUPS (plan a medida).

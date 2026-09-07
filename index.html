@@ -303,7 +303,7 @@
             <option value="p25" selected>Hasta 25 productos · $30.000/mes</option>
             <option value="p50">Hasta 50 productos · $50.000/mes</option>
             <option value="p100">Hasta 100 productos · $75.000/mes</option>
-            <option value="pilim">Más de 100 productos · $100.000/mes</option>
+            <option value="pilim">101 a 200 productos · $100.000/mes</option>
           </select>
         </div>
         <div class="row" style="justify-content:flex-end;align-items:center">
@@ -851,7 +851,7 @@ function seedDB() {
     { id: 'p25', name: 'Hasta 25', max: 25, price: 30000 },
     { id: 'p50', name: 'Hasta 50', max: 50, price: 50000 },
     { id: 'p100', name: 'Hasta 100', max: 100, price: 75000 },
-    { id: 'pilim', name: 'Más de 100', max: null, price: 100000 }
+    { id: 'pilim', name: '101 a 200', max: 200, price: 100000 }
   ];
   function planOf(c) { var id = c && c.planId; for (var i = 0; i < MT_PLANS.length; i++) { if (MT_PLANS[i].id === id) return MT_PLANS[i]; } return MT_PLANS[0]; }
   function fmtARS(n) { return '$' + String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
