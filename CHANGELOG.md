@@ -33,3 +33,6 @@
 - Cada app al abrirse muestra su propio menú: Información · Versiones · Notas · Panel externo (las apps nuevas lo tienen automáticamente).
 - La tarjeta de APPI abre el panel de administración nativo con las pestañas del admin real: **Hoy · Solicitudes · Cuentas · Más** (Hoy: KPIs, próximos vencimientos, últimos pagos; Más: WhatsApp, ingresos mensuales, sesión).
 - Catálogo más limpio: las tarjetas cerradas muestran estado, versión y fecha; todo lo demás se abre adentro.
+
+## v0.6.0 · 2026-09-07
+- **Retorno a la versión original del panel POPUPS** (catálogo puro: tarjetas, fichas, equipo y actividad). Se retiran los experimentos de paneles insertados en tarjetas y en la barra superior; quedan conservados en el historial de git para retomarlos cuando definamos el diseño correcto juntos.
