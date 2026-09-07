@@ -275,6 +275,19 @@
   </div>
 </div>
 
+
+<!-- MODAL panel incrustado (administración de la app) -->
+<div class="ov" id="frameBox" style="padding:16px;align-items:stretch">
+  <div class="sheet wide" style="max-width:1100px;width:100%;display:flex;flex-direction:column;height:94vh;max-height:94vh;padding:14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <b id="frameTitle" style="flex:1;font-size:15px">Administración</b>
+      <a class="btn small" id="frameOpen" href="#" target="_blank" rel="noopener">Abrir en pestaña ↗</a>
+      <button class="btn small" data-close style="font-size:16px;line-height:1">✕ Cerrar</button>
+    </div>
+    <iframe id="frameSrc" style="flex:1;width:100%;border:1px solid var(--line);border-radius:14px;background:#fff" title="Panel de la app"></iframe>
+  </div>
+</div>
+
 <div class="toastx" id="toast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#10130e;padding:11px 18px;border-radius:999px;font-size:13px;z-index:99;display:none;font-weight:650;max-width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.4)"></div>
 
 <script>
@@ -314,10 +327,10 @@
     return {
       apps: [
         app({ slug: 'appi', name: 'APPI', category: 'gestion', status: 'produccion', version: '543.0.0', versionDate: '2026-09-07',
-          urls: { site: 'https://somospopups.github.io/appi/', admin: '', repo: 'https://github.com/Somospopups/appi', docs: 'https://github.com/Somospopups/appi/blob/main/README.md' },
+          urls: { site: 'https://somospopups.github.io/appi/', admin: 'https://somospopups.github.io/appi/', repo: 'https://github.com/Somospopups/appi', docs: 'https://github.com/Somospopups/appi/blob/main/README.md' },
           supabaseRef: 'tqwnjfnaywjmyfplvatm', tagline: 'PWA local-first para planificación mensual, presupuesto, equipo, garantías, contactos, notas, historial y gestión de referidos.' }),
         app({ slug: 'mi-tienda', name: 'Mi-Tienda', category: 'ecommerce', status: 'demo', version: '0.1.0', versionDate: '2026-09-07',
-          urls: { site: 'https://somospopups.github.io/Mi-Tienda/', admin: '', repo: 'https://github.com/Somospopups/Mi-Tienda', docs: '' },
+          urls: { site: 'https://somospopups.github.io/Mi-Tienda/', admin: 'https://somospopups.github.io/Mi-Tienda/#admin', repo: 'https://github.com/Somospopups/Mi-Tienda', docs: '' },
           brand: { color: '#D9633C' }, tagline: 'Tienda online con panel de gestión completo para comercios.' })
       ],
       members: [{ id: 'm1', email: 'somospopups@gmail.com', name: 'Equipo POPUPS', role: 'owner', active: true, createdAt: now }],
@@ -465,8 +478,8 @@
         '<div class="chips"><span class="ver">v' + esc(a.version || '0.0.0') + '</span>' +
         (a.releasesCount ? '<span class="ver">· ' + a.releasesCount + ' release' + (a.releasesCount === 1 ? '' : 's') + '</span>' : '') + '</div>' +
         '<div class="foot"><span>Actualizada ' + fmt(a.updatedAt) + '</span><span class="links">' +
+        (a.urls.admin ? '<button data-frame="' + esc(a.urls.admin) + '" title="Abrir administración (dentro de la consola)" style="width:auto;height:auto;padding:0 9px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--acc);font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:4px;margin-right:2px">◈ Admin</button>' : '') +
         (a.urls.site ? '<a href="' + esc(a.urls.site) + '" target="_blank" rel="noopener" title="Sitio">↗</a>' : '') +
-        (a.urls.admin ? '<a href="' + esc(a.urls.admin) + '" target="_blank" rel="noopener" title="Admin">◈</a>' : '') +
         (a.urls.repo ? '<a href="' + esc(a.urls.repo) + '" target="_blank" rel="noopener" title="Repo">&lt;/&gt;</a>' : '') + '</span></div></div>';
     }).join('');
     $('emptyApps').style.display = state.apps.length ? 'none' : 'block';
@@ -547,10 +560,20 @@
 
   // ---------- grid de apps ----------
   $('appsGrid').addEventListener('click', function (e) {
+    var fbtn = e.target.closest('[data-frame]');
+    if (fbtn) { openFrame(fbtn.getAttribute('data-frame')); return; }
     if (e.target.closest('.links')) return; // los links abren directo
     var card = e.target.closest('.card');
     if (card) openDetail(card.dataset.slug);
   });
+  function openFrame(url) {
+    var f = $('frameBox'), fr = $('frameSrc');
+    fr.src = url;
+    $('frameTitle').textContent = (curApp ? curApp.name : 'App') + ' · administración';
+    $('frameOpen').href = url;
+    f.classList.add('open');
+    $('frameSrc').focus();
+  }
 
   // ---------- detalle de app ----------
   var curApp = null;
@@ -577,6 +600,7 @@
       '<dt>Creada</dt><dd>' + fmt(a.createdAt) + '</dd></dl>' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">' +
       '<button class="btn small" data-ad="edit">✎ Editar ficha</button>' +
+      (a.urls.admin || a.urls.site ? '<button class="btn small" data-ad="admin" style="color:var(--acc);border-color:#3f5231">◈ Abrir administración</button>' : '') +
       '<button class="btn small" data-ad="release">+ Registrar versión</button>' +
       '<button class="btn small" data-ad="note">+ Nota interna</button>' +
       (a.status !== 'pausada' && a.status !== 'retirada' ? '<button class="btn small" data-ad="pause">⏸ Pausar</button>' : '') +
@@ -604,6 +628,7 @@
       $('appFormError').textContent = '';
       closeOv(); openOv('modalApp');
     }
+    if (act === 'admin') { var au = (curApp.urls && (curApp.urls.admin || curApp.urls.site)); if (au) openFrame(au); return; }
     if (act === 'release') { $('relSub').textContent = curApp.name + ' · última: v' + (curApp.version || '—'); $('relError').textContent = ''; $('releaseForm').reset(); closeOv(); openOv('modalRelease'); }
     if (act === 'note') { $('noteSub').textContent = curApp.name; $('noteError').textContent = ''; $('noteForm').reset(); closeOv(); openOv('modalNote'); }
     if (act === 'pause') changeStatus('pausada');
