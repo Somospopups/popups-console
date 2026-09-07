@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consola POPUPS</title>
+<style>
+  :root{
+    --bg:#0e100d; --panel:#161a14; --panel2:#1d211a; --line:rgba(242,239,231,.09);
+    --ink:#f2efe7; --mut:#9aa091; --dim:#6f7568;
+    --acc:#b7e078; --acc2:#8fb84f;
+    --idea:#8a8f84; --dev:#7ea6d9; --demo:#e3b36a; --prod:#7ccb9a; --mant:#b9a2e0; --pausa:#e08a5f; --retir:#dd6b5f;
+    --r:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14.5px;line-height:1.5}
+  button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+  input,select,textarea{font:inherit;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#10130e;color:var(--ink);width:100%;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--acc2)}
+  label{display:block;font-size:12px;font-weight:600;color:var(--mut);margin-bottom:5px;letter-spacing:.02em}
+  .field{margin-bottom:13px}
+  .row{display:flex;gap:12px}.row>*{flex:1}
+  a{color:inherit;text-decoration:none}
+  .serif{font-family:Georgia,'Times New Roman',serif}
+  /* header */
+  header{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:18px;padding:14px 26px;background:rgba(14,16,13,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .logo{display:flex;align-items:baseline;gap:9px}
+  .logo .p{font-family:Georgia,serif;font-size:21px;color:var(--acc);letter-spacing:.01em}
+  .logo b{font-size:15px;letter-spacing:.06em;font-weight:700}
+  .logo small{color:var(--mut);font-size:11px;letter-spacing:.22em;text-transform:uppercase}
+  .sp{flex:1}
+  nav.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px}
+  nav.tabs button{padding:7px 16px;border-radius:999px;color:var(--mut);font-size:13px;font-weight:600}
+  nav.tabs button.active{background:var(--ink);color:#10130e}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:8px 17px;font-weight:650;border:1px solid var(--line);background:var(--panel);color:var(--ink);white-space:nowrap;font-size:13.5px}
+  .btn:hover{border-color:#3a4232}
+  .btn.acc{background:var(--acc);color:#14170f;border-color:var(--acc)}
+  .btn.acc:hover{background:var(--acc2)}
+  .btn.ghost{background:transparent}
+  .btn.danger{color:#e08a7a;border-color:rgba(221,107,95,.4)}
+  .btn.small{padding:5px 12px;font-size:12.5px}
+  .btn:disabled{opacity:.5;pointer-events:none}
+  /* layout */
+  .wrap{max-width:1160px;margin:26px auto 70px;padding:0 22px}
+  .hero h1{font-family:Georgia,serif;font-weight:400;font-size:clamp(30px,4.6vw,52px);line-height:1.04;margin:6px 0 12px;letter-spacing:-.02em}
+  .hero h1 em{color:var(--acc);font-style:italic}
+  .hero p{color:var(--mut);max-width:560px;margin:0 0 6px;font-size:15px}
+  .kicker{font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--acc);font-weight:700}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:24px 0 26px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:15px 17px}
+  .stat b{display:block;font-size:27px;line-height:1.05;font-weight:750}
+  .stat span{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.08em}
+  .stat i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:1px}
+  /* tarjetas apps */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:19px 20px 15px;cursor:pointer;transition:transform .18s ease,border-color .18s ease;position:relative;overflow:hidden}
+  .card:hover{transform:translateY(-2px);border-color:#39422f}
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent-card,var(--line))}
+  .card .top{display:flex;align-items:center;gap:11px}
+  .avatar{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:17px;font-weight:700;background:var(--panel2);border:1px solid var(--line)}
+  .card h3{margin:0;font-size:17px;letter-spacing:.01em}
+  .card .slugc{color:var(--dim);font-size:12px}
+  .card .tagline{color:var(--mut);font-size:13px;margin:10px 0 12px;min-height:38px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
+  .chip{font-size:10.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;padding:3px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+  .chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .chip.idea{color:var(--idea);background:rgba(138,143,132,.12)}
+  .chip.en_desarrollo{color:var(--dev);background:rgba(126,166,217,.12)}
+  .chip.demo{color:var(--demo);background:rgba(227,179,106,.12)}
+  .chip.produccion{color:var(--prod);background:rgba(124,203,154,.12)}
+  .chip.mantenimiento{color:var(--mant);background:rgba(185,162,224,.12)}
+  .chip.pausada{color:var(--pausa);background:rgba(224,138,95,.12)}
+  .chip.retirada{color:var(--retir);background:rgba(221,107,95,.12)}
+  .ver{color:var(--dim);font-size:12px;font-family:ui-monospace,Menlo,monospace}
+  .card .foot{display:flex;align-items:center;gap:8px;border-top:1px dashed var(--line);padding-top:11px;color:var(--mut);font-size:12px}
+  .links{margin-left:auto;display:flex;gap:6px}
+  .links a{display:inline-flex;width:27px;height:27px;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--line);font-size:12px;color:var(--mut);transition:all .15s}
+  .links a:hover{color:var(--ink);border-color:var(--acc2)}
+  /* modales / panel detalle */
+  .ov{position:fixed;inset:0;background:rgba(5,6,4,.7);backdrop-filter:blur(3px);display:none;z-index:60;align-items:flex-start;justify-content:center;padding:34px 16px;overflow:auto}
+  .ov.open{display:flex}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:22px;max-width:620px;width:100%;padding:26px;box-shadow:0 30px 90px rgba(0,0,0,.5)}
+  .sheet.wide{max-width:760px}
+  .sheet .x{float:right;font-size:20px;color:var(--mut);padding:4px}
+  .sheet h2{margin:0 0 2px;font-family:Georgia,serif;font-weight:400;font-size:25px}
+  .sheet .sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 18px;font-size:13px;background:#10130e;border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin:12px 0}
+  .kv dt{color:var(--mut);font-weight:600}
+  .kv dd{margin:0;word-break:break-all}
+  .sec{margin-top:18px}
+  .sec>h4{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);margin:0 0 9px}
+  .item{border:1px solid var(--line);border-radius:13px;padding:10px 13px;margin-bottom:8px;background:#10130e}
+  .item b{font-size:13px}
+  .item .date{float:right;color:var(--dim);font-size:11.5px}
+  .item p{margin:4px 0 0;color:var(--mut);font-size:13px;white-space:pre-wrap}
+  .form-error{color:#e08a7a;font-size:13px;min-height:17px;margin:2px 0 8px}
+  .hint{font-size:12.5px;color:var(--mut);background:#10130e;border:1px dashed var(--line);border-radius:11px;padding:9px 12px;margin:10px 0}
+  /* login */
+  #login{position:fixed;inset:0;background:radial-gradient(1200px 700px at 80% -10%,#1c2413,#0e100d 60%);display:none;align-items:center;justify-content:center;z-index:100}
+  #login.open{display:flex}
+  #login .sheet{max-width:370px;text-align:center;padding:32px 30px}
+  #login .p{font-family:Georgia,serif;font-size:38px;color:var(--acc);line-height:1}
+  #login h1{font-family:Georgia,serif;font-weight:400;font-size:24px;margin:8px 0 4px}
+  #login p{color:var(--mut);font-size:13px;margin:0 0 18px}
+  /* tabs de contenido */
+  .view{display:none}
+  .view.active{display:block}
+  .empty{color:var(--dim);text-align:center;padding:46px 0;border:1px dashed var(--line);border-radius:var(--r)}
+  .muted{color:var(--mut)} .dim{color:var(--dim)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{color:var(--mut);text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .timeline{list-style:none;margin:0;padding:0}
+  .timeline li{display:flex;gap:14px;padding:0 0 18px;position:relative}
+  .timeline li::before{content:'';position:absolute;left:5px;top:16px;bottom:-2px;width:1px;background:var(--line)}
+  .timeline li:last-child::before{display:none}
+  .timeline .nd{width:11px;height:11px;border-radius:50%;background:var(--acc);margin-top:5px;flex:none;position:relative;z-index:1;box-shadow:0 0 0 3px var(--bg)}
+  .timeline b{font-size:13px}
+  .timeline .act{color:var(--dim);font-size:11.5px;font-family:ui-monospace,Menlo,monospace}
+  .timeline p{margin:2px 0 0;color:var(--mut);font-size:12.5px}
+  @media(max-width:760px){ header{padding:11px 14px;flex-wrap:wrap} nav.tabs{order:3;width:100%} .wrap{padding:0 14px} }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="open">
+  <div class="sheet">
+    <div class="p">P●</div>
+    <h1>Consola POPUPS</h1>
+    <p>Acceso del equipo. Un solo lugar para todas las aplicaciones.</p>
+    <form id="loginForm">
+      <label class="field">PIN del equipo<input name="pin" type="password" inputmode="numeric" maxlength="12" placeholder="••••" autocomplete="current-password" required></label>
+      <p class="form-error" id="loginError"></p>
+      <button class="btn acc" style="width:100%;justify-content:center" type="submit">Ingresar</button>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <header>
+    <div class="logo"><span class="p">P●</span><b>POPUPS</b><small>Consola</small></div>
+    <span class="sp"></span>
+    <nav class="tabs">
+      <button data-tab="apps" class="active">Apps</button>
+      <button data-tab="team">Equipo</button>
+      <button data-tab="activity">Actividad</button>
+    </nav>
+    <span class="sp"></span>
+    <button class="btn acc" id="newAppBtn">+ Nueva app</button>
+    <button class="btn ghost small" id="logoutBtn">Salir</button>
+  </header>
+
+  <div class="wrap">
+
+    <!-- VISTA APPS -->
+    <div class="view active" id="view-apps">
+      <div class="hero">
+        <span class="kicker">Ecosistema POPUPS</span>
+        <h1>Todas tus apps.<br><em>Un solo lugar.</em></h1>
+        <p>Cada aplicación declara su ficha con el estándar POPUPS y aparece sola acá. Estado, versión, links y acceso al panel de cada una.</p>
+      </div>
+      <div class="stats" id="statsRow"></div>
+      <div class="grid" id="appsGrid"></div>
+      <p class="empty" id="emptyApps" style="display:none">Todavía no hay apps. Creá la primera con “+ Nueva app”.</p>
+    </div>
+
+    <!-- VISTA EQUIPO -->
+    <div class="view" id="view-team">
+      <div class="hero">
+        <span class="kicker">Equipo</span>
+        <h1>Quién trabaja<br><em>en POPUPS.</em></h1>
+      </div>
+      <div class="row" style="max-width:560px;align-items:flex-end">
+        <div class="field" style="flex:1"><label>Nombre</label><input id="mName" maxlength="120"></div>
+        <div class="field" style="flex:1"><label>Email</label><input id="mEmail" type="email" maxlength="160"></div>
+        <div class="field" style="flex:1"><label>Rol</label>
+          <select id="mRole"><option value="owner">Owner</option><option value="admin" selected>Admin</option><option value="dev">Dev</option><option value="support">Soporte</option></select></div>
+        <button class="btn" id="addMemberBtn">Agregar</button>
+      </div>
+      <p class="form-error" id="memberError"></p>
+      <div style="max-width:820px;margin-top:14px">
+        <table>
+          <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Alta</th></tr></thead>
+          <tbody id="membersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VISTA ACTIVIDAD -->
+    <div class="view" id="view-activity">
+      <div class="hero">
+        <span class="kicker">Bitácora</span>
+        <h1>Qué pasó,<br><em>en orden.</em></h1>
+      </div>
+      <ul class="timeline" id="activityList" style="max-width:680px;margin-top:18px"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL nueva/editar app -->
+<div class="ov" id="modalApp">
+  <div class="sheet wide">
+    <button class="x" data-close>×</button>
+    <h2 id="appModalTitle">Nueva app</h2>
+    <p class="sub" id="appModalSub">Se registra con el estándar POPUPS y aparece en el catálogo.</p>
+    <form id="appForm">
+      <div class="row">
+        <div class="field" style="flex:1.4"><label>Nombre *</label><input name="name" maxlength="60" required placeholder="Ej. Mi-Tienda"></div>
+        <div class="field"><label>Slug * (URL única)</label><input name="slug" maxlength="60" placeholder="mi-tienda"></div>
+      </div>
+      <div class="field"><label>Tagline (una línea)</label><input name="tagline" maxlength="120" placeholder="Qué hace esta app…"></div>
+      <div class="row">
+        <div class="field"><label>Categoría</label><input name="category" list="cats" maxlength="40" placeholder="ecommerce"><datalist id="cats"><option value="ecommerce"><option value="gestion"><option value="equipos"><option value="crm"><option value="interna"></datalist></div>
+        <div class="field"><label>Estado</label>
+          <select name="status"><option value="idea">Idea</option><option value="en_desarrollo">En desarrollo</option><option value="demo" selected>Demo</option><option value="produccion">Producción</option><option value="mantenimiento">Mantenimiento</option><option value="pausada">Pausada</option><option value="retirada">Retirada</option></select></div>
+        <div class="field"><label>Versión</label><input name="version" maxlength="20" placeholder="0.1.0"></div>
+      </div>
+      <div class="field"><label>Color de marca</label><div style="display:flex;align-items:center;gap:10px"><input name="brandColor" type="color" value="#b7e078" style="width:52px;height:36px;padding:3px"><span class="muted" style="font-size:12px">Se usa en la tarjeta de la app.</span></div></div>
+      <div class="row">
+        <div class="field"><label>Link del sitio</label><input name="site" placeholder="https://…"></div>
+        <div class="field"><label>Link del panel admin</label><input name="admin" placeholder="https://… (si existe)"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Repo GitHub</label><input name="repo" placeholder="https://github.com/Somospopups/…"></div>
+        <div class="field"><label>Docs</label><input name="docs" placeholder="https://…"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Supabase ref</label><input name="supabaseRef" maxlength="60" placeholder="(si usa)"></div>
+      </div>
+      <p class="form-error" id="appFormError"></p>
+      <button class="btn acc" style="width:100%;justify-content:center" type="submit" id="appFormSubmit">Crear app</button>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL detalle app -->
+<div class="ov" id="modalDetail">
+  <div class="sheet wide">
+    <button class="x" data-close>×</button>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<!-- MODAL release -->
+<div class="ov" id="modalRelease">
+  <div class="sheet">
+    <button class="x" data-close>×</button>
+    <h2>Registrar versión</h2>
+    <p class="sub" id="relSub"></p>
+    <form id="releaseForm">
+      <div class="row">
+        <div class="field"><label>Versión (semver)</label><input name="version" maxlength="20" placeholder="1.2.0" required></div>
+      </div>
+      <div class="field"><label>Qué cambió (resumen)</label><textarea name="summary" rows="3" maxlength="500" placeholder="1-2 líneas para el equipo…"></textarea></div>
+      <p class="form-error" id="relError"></p>
+      <button class="btn acc" style="width:100%;justify-content:center" type="submit">Guardar versión</button>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL nota -->
+<div class="ov" id="modalNote">
+  <div class="sheet">
+    <button class="x" data-close>×</button>
+    <h2>Nota interna</h2>
+    <p class="sub" id="noteSub"></p>
+    <form id="noteForm">
+      <div class="field"><label>Nota</label><textarea name="body" rows="4" maxlength="2000" required placeholder="Decisión, contexto, pendiente…"></textarea></div>
+      <p class="form-error" id="noteError"></p>
+      <button class="btn acc" style="width:100%;justify-content:center" type="submit">Guardar nota</button>
+    </form>
+  </div>
+</div>
+
+<div class="toastx" id="toast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#10130e;padding:11px 18px;border-radius:999px;font-size:13px;z-index:99;display:none;font-weight:650;max-width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.4)"></div>
+
+<script>
+
+(function () {
+  'use strict';
+  var memStore = {};
+  function sGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return memStore[k] || null; } }
+  function sSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { memStore[k] = v; } }
+  function sDel(k) { try { sessionStorage.removeItem(k); } catch (e) { delete memStore[k]; } }
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { token: sGet('popups_console_token') || '', apps: [], members: [], activity: [], tab: 'apps', currentSlug: null };
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function fmt(d) { if (!d) return '—'; var p = String(d).slice(0, 10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  function fmtFull(d) { if (!d) return ''; return String(d).replace('T', ' ').slice(0, 16); }
+  function toast(m) { var t = $('toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(function () { t.style.display = 'none'; }, 3000); }
+  function initials(name, slug) { var s = String(name || slug || '?'); return s.trim().charAt(0).toUpperCase(); }
+    // ================================================================
+  // Capa de datos local (versión GitHub Pages / standalone)
+  // Guarda en localStorage del navegador. PIN del equipo editable abajo.
+  // ================================================================
+  var PIN_EQUIPO = '2468';
+  var LOCAL_TOKEN = 'popups-local-token';
+  var MEM = null;
+  function seedDB() {
+    var now = new Date().toISOString();
+    var app = function (f) {
+      return {
+        slug: f.slug, name: f.name, tagline: f.tagline || '', category: f.category || '',
+        status: f.status || 'idea', version: f.version || '', versionDate: f.versionDate || '',
+        urls: f.urls || { site: '', admin: '', repo: '', docs: '' },
+        supabaseRef: f.supabaseRef || '', brand: f.brand || { color: '' },
+        createdAt: now, updatedAt: now, releases: [], notes: []
+      };
+    };
+    return {
+      apps: [
+        app({ slug: 'appi', name: 'APPI', category: 'gestion', status: 'produccion', version: '543.0.0', versionDate: '2026-09-07',
+          urls: { site: 'https://somospopups.github.io/appi/', admin: '', repo: 'https://github.com/Somospopups/appi', docs: 'https://github.com/Somospopups/appi/blob/main/README.md' },
+          supabaseRef: 'tqwnjfnaywjmyfplvatm', tagline: 'PWA local-first para planificación mensual, presupuesto, equipo, garantías, contactos, notas, historial y gestión de referidos.' }),
+        app({ slug: 'mi-tienda', name: 'Mi-Tienda', category: 'ecommerce', status: 'demo', version: '0.1.0', versionDate: '2026-09-07',
+          urls: { site: 'https://somospopups.github.io/Mi-Tienda/', admin: '', repo: 'https://github.com/Somospopups/Mi-Tienda', docs: '' },
+          brand: { color: '#D9633C' }, tagline: 'Tienda online con panel de gestión completo para comercios.' })
+      ],
+      members: [{ id: 'm1', email: 'somospopups@gmail.com', name: 'Equipo POPUPS', role: 'owner', active: true, createdAt: now }],
+      activity: [{ id: 'a1', at: now, actor: 'sistema', action: 'consola.iniciada', detail: null }]
+    };
+  }
+  function getDB() {
+    if (MEM) return MEM;
+    try { var raw = localStorage.getItem('popups_console_v1'); if (raw) { var d = JSON.parse(raw); if (d && d.apps) { MEM = d; return d; } } } catch (e) {}
+    MEM = seedDB(); return MEM;
+  }
+  function setDB(d) { MEM = d; try { localStorage.setItem('popups_console_v1', JSON.stringify(d)); } catch (e) {} }
+  function act(d, actor, action, detail) { d.activity.unshift({ id: 'x' + Date.now() + Math.random().toString(16).slice(2, 6), at: new Date().toISOString(), actor: actor, action: action, detail: detail || null }); if (d.activity.length > 300) d.activity.length = 300; }
+  function pubApp(a, withDetail) {
+    var base = { slug: a.slug, name: a.name, tagline: a.tagline, category: a.category, status: a.status, version: a.version, versionDate: a.versionDate, urls: a.urls || {}, supabaseRef: a.supabaseRef || '', brand: a.brand || {}, updatedAt: a.updatedAt, createdAt: a.createdAt, releasesCount: (a.releases || []).length };
+    if (withDetail) { base.releases = (a.releases || []).slice().reverse(); base.notes = (a.notes || []).slice().reverse(); }
+    return base;
+  }
+  var ESTADOS_OK = { idea: 1, en_desarrollo: 1, demo: 1, produccion: 1, mantenimiento: 1, pausada: 1, retirada: 1 };
+  function clean(v, max) { return String(v == null ? '' : v).trim().slice(0, max || 500); }
+  function api(path, opts) {
+    opts = opts || {};
+    var method = (opts.method || 'GET').toUpperCase();
+    var body = opts.body || {};
+    return new Promise(function (resolve, reject) {
+      function fail(st, msg) { var e = new Error(msg); e.status = st; reject(e); }
+      function ok(obj) { resolve(obj); }
+      var d = getDB();
+      var authed = state.token === LOCAL_TOKEN;
+      var isLogin = path === '/api/login';
+      if (path.indexOf('/api/') === 0 && !isLogin && !authed) return fail(401, 'Sesión inválida. Volvé a ingresar.');
+
+      // login
+      if (path === '/api/login' && method === 'POST') {
+        if (clean(body.pin, 30) !== PIN_EQUIPO) return fail(401, 'PIN incorrecto.');
+        state.token = LOCAL_TOKEN; sSet('popups_console_token', LOCAL_TOKEN);
+        act(d, 'equipo', 'auth.login', {}); setDB(d);
+        return ok({ token: LOCAL_TOKEN });
+      }
+      var mApp = path.match(/^\/api\/apps\/([^/]+)$/);
+      var mSub = path.match(/^\/api\/apps\/([^/]+)\/(releases|notes)$/);
+      // apps listado/crear
+      if (path === '/api/apps' && method === 'GET') return ok({ apps: d.apps.map(function (a) { return pubApp(a); }) });
+      if (path === '/api/apps' && method === 'POST') {
+        var slug = clean(body.slug, 60).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+        if (!slug || slug.length < 2) return fail(400, 'Elegí un slug válido (ej. mi-app).');
+        if (d.apps.some(function (a) { return a.slug === slug; })) return fail(409, 'Ese slug ya existe.');
+        var t = new Date().toISOString();
+        var appNew = { slug: slug, name: clean(body.name, 60) || slug, tagline: clean(body.tagline, 120), category: clean(body.category, 40), status: ESTADOS_OK[body.status] ? body.status : 'idea', version: clean(body.version, 20) || '0.0.0', versionDate: clean(body.versionDate, 10) || t.slice(0, 10), urls: { site: clean(body.urls && body.urls.site, 300), admin: clean(body.urls && body.urls.admin, 300), repo: clean(body.urls && body.urls.repo, 300), docs: clean(body.urls && body.urls.docs, 300) }, supabaseRef: clean(body.supabaseRef, 60), brand: { color: /^#[0-9a-f]{6}$/i.test(body.brandColor || '') ? body.brandColor : '' }, createdAt: t, updatedAt: t, releases: [], notes: [] };
+        d.apps.push(appNew); act(d, 'equipo', 'app.creada', { slug: slug, name: appNew.name }); setDB(d);
+        return ok({ app: pubApp(appNew, true) });
+      }
+      // detalle / editar / eliminar
+      if (mApp && method === 'GET') { var g = d.apps.find(function (x) { return x.slug === mApp[1]; }); if (!g) return fail(404, 'App no encontrada.'); return ok({ app: pubApp(g, true) }); }
+      if (mApp && method === 'PATCH') {
+        var p = d.apps.find(function (x) { return x.slug === mApp[1]; }); if (!p) return fail(404, 'App no encontrada.');
+        var oldS = p.status, b = body;
+        if (b.name != null) p.name = clean(b.name, 60) || p.name;
+        if (b.tagline != null) p.tagline = clean(b.tagline, 120);
+        if (b.category != null) p.category = clean(b.category, 40);
+        if (b.status != null && ESTADOS_OK[b.status]) p.status = b.status;
+        if (b.version != null) p.version = clean(b.version, 20);
+        if (b.versionDate != null) p.versionDate = clean(b.versionDate, 10);
+        if (b.supabaseRef != null) p.supabaseRef = clean(b.supabaseRef, 60);
+        if (b.urls) { p.urls = { site: clean(b.urls.site != null ? b.urls.site : p.urls.site, 300), admin: clean(b.urls.admin != null ? b.urls.admin : p.urls.admin, 300), repo: clean(b.urls.repo != null ? b.urls.repo : p.urls.repo, 300), docs: clean(b.urls.docs != null ? b.urls.docs : p.urls.docs, 300) }; }
+        if (b.brandColor != null) p.brand.color = /^#[0-9a-f]{6}$/i.test(b.brandColor) ? b.brandColor : p.brand.color;
+        p.updatedAt = new Date().toISOString();
+        act(d, 'equipo', b.status != null && b.status !== oldS ? 'app.estado' : 'app.editada', { slug: p.slug, desde: oldS, hacia: p.status }); setDB(d);
+        return ok({ app: pubApp(p, true) });
+      }
+      if (mApp && method === 'DELETE') {
+        var di = d.apps.findIndex(function (x) { return x.slug === mApp[1]; }); if (di < 0) return fail(404, 'App no encontrada.');
+        var del = d.apps[di]; d.apps.splice(di, 1); act(d, 'equipo', 'app.eliminada', { slug: del.slug }); setDB(d);
+        return ok({ ok: true });
+      }
+      // releases / notes
+      if (mSub && method === 'POST') {
+        var sa = d.apps.find(function (x) { return x.slug === mSub[1]; }); if (!sa) return fail(404, 'App no encontrada.');
+        var nowIso = new Date().toISOString();
+        if (mSub[2] === 'releases') {
+          var ver = clean(body.version, 20); if (!ver) return fail(400, 'Ingresá la versión.');
+          var rel = { id: 'r' + Date.now(), version: ver, summary: clean(body.summary, 500), actor: clean(body.actor, 60) || 'equipo', at: nowIso };
+          sa.releases.push(rel); sa.version = ver; sa.versionDate = nowIso.slice(0, 10); sa.updatedAt = nowIso;
+          act(d, rel.actor, 'app.release', { slug: sa.slug, version: ver }); setDB(d);
+          return ok({ release: rel });
+        }
+        if (mSub[2] === 'notes') {
+          var nb = clean(body.body, 2000); if (!nb) return fail(400, 'Escribí la nota.');
+          var note = { id: 'n' + Date.now(), author: clean(body.author, 60) || 'equipo', body: nb, at: nowIso };
+          sa.notes.push(note); sa.updatedAt = nowIso; setDB(d);
+          return ok({ note: note });
+        }
+      }
+      // miembros
+      if (path === '/api/members' && method === 'GET') return ok({ members: d.members });
+      if (path === '/api/members' && method === 'POST') {
+        var em = clean(body.email, 160).toLowerCase();
+        if (!/^\S+@\S+\.\S+$/.test(em)) return fail(400, 'Email inválido.');
+        if (d.members.some(function (x) { return x.email === em; })) return fail(409, 'Ese email ya está en el equipo.');
+        var member = { id: 'u' + Date.now(), email: em, name: clean(body.name, 120), role: ['owner', 'admin', 'dev', 'support'].indexOf(body.role) !== -1 ? body.role : 'dev', active: true, createdAt: new Date().toISOString() };
+        d.members.push(member); act(d, 'equipo', 'miembro.agregado', { email: em, role: member.role }); setDB(d);
+        return ok({ member: member });
+      }
+      if (path === '/api/activity' && method === 'GET') return ok({ activity: d.activity.slice(0, 80) });
+      if (path === '/api/health') return ok({ ok: true });
+      return fail(404, 'Ruta no encontrada.');
+    });
+  }
+  // ---------- login ----------
+  function showLogin() { $('login').classList.add('open'); $('app').style.display = 'none'; }
+  function enterApp() { $('login').classList.remove('open'); $('app').style.display = 'block'; }
+  $('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = e.target.querySelector('button'); btn.disabled = true;
+    $('loginError').textContent = 'Ingresando…';
+    api('/api/login', { method: 'POST', body: { pin: e.target.pin.value } })
+      .then(function (d) { state.token = d.token; sSet('popups_console_token', d.token); enterApp(); loadAll(); })
+      .catch(function (er) { $('loginError').textContent = er.message; })
+      .finally(function () { btn.disabled = false; });
+  });
+  $('logoutBtn').addEventListener('click', function () { state.token = ''; sDel('popups_console_token'); showLogin(); });
+
+  // ---------- estado / colores ----------
+  var LABELS = { idea: 'Idea', en_desarrollo: 'En desarrollo', demo: 'Demo', produccion: 'Producción', mantenimiento: 'Mantenimiento', pausada: 'Pausada', retirada: 'Retirada' };
+  function chip(a) { return '<span class="chip ' + esc(a.status) + '"><span class="dot"></span>' + LABELS[a.status] + '</span>'; }
+  function icn(a) { return a.brand && a.brand.color ? '<span class="avatar" style="border-color:' + esc(a.brand.color) + '55;color:' + esc(a.brand.color) + '">' + esc(initials(a.name, a.slug)) + '</span>' : '<span class="avatar">' + esc(initials(a.name, a.slug)) + '</span>'; }
+
+  // ---------- render apps ----------
+  function renderStats() {
+    var n = state.apps.length;
+    var prod = state.apps.filter(function (a) { return a.status === 'produccion'; }).length;
+    var demo = state.apps.filter(function (a) { return a.status === 'demo'; }).length;
+    var dev = state.apps.filter(function (a) { return a.status === 'en_desarrollo'; }).length;
+    $('statsRow').innerHTML =
+      '<div class="stat"><b>' + n + '</b><span>Apps</span></div>' +
+      '<div class="stat"><b><i style="background:var(--prod)"></i>' + prod + '</b><span>En producción</span></div>' +
+      '<div class="stat"><b><i style="background:var(--demo)"></i>' + demo + '</b><span>En demo</span></div>' +
+      '<div class="stat"><b><i style="background:var(--dev)"></i>' + dev + '</b><span>En desarrollo</span></div>';
+  }
+  function renderApps() {
+    $('appsGrid').innerHTML = state.apps.map(function (a) {
+      return '<div class="card" data-slug="' + esc(a.slug) + '" style="--accent-card:' + ((a.brand && a.brand.color) || '#3a4232') + '">' +
+        '<div class="top">' + icn(a) + '<div><h3>' + esc(a.name) + '</h3><div class="slugc">' + esc(a.slug) + '</div></div>' + chip(a) + '</div>' +
+        '<p class="tagline">' + esc(a.tagline || 'Sin descripción todavía.') + '</p>' +
+        '<div class="chips"><span class="ver">v' + esc(a.version || '0.0.0') + '</span>' +
+        (a.releasesCount ? '<span class="ver">· ' + a.releasesCount + ' release' + (a.releasesCount === 1 ? '' : 's') + '</span>' : '') + '</div>' +
+        '<div class="foot"><span>Actualizada ' + fmt(a.updatedAt) + '</span><span class="links">' +
+        (a.urls.site ? '<a href="' + esc(a.urls.site) + '" target="_blank" rel="noopener" title="Sitio">↗</a>' : '') +
+        (a.urls.admin ? '<a href="' + esc(a.urls.admin) + '" target="_blank" rel="noopener" title="Admin">◈</a>' : '') +
+        (a.urls.repo ? '<a href="' + esc(a.urls.repo) + '" target="_blank" rel="noopener" title="Repo">&lt;/&gt;</a>' : '') + '</span></div></div>';
+    }).join('');
+    $('emptyApps').style.display = state.apps.length ? 'none' : 'block';
+  }
+  function renderTeam() {
+    $('membersBody').innerHTML = state.members.map(function (m) {
+      return '<tr><td>' + esc(m.name || '—') + '</td><td>' + esc(m.email) + '</td><td><span class="chip ' + (m.role === 'owner' ? 'produccion' : m.role === 'support' ? 'demo' : 'dev') + '">' + esc(m.role) + '</span></td><td class="muted">' + fmt(m.createdAt) + '</td></tr>';
+    }).join('');
+  }
+  function renderActivity() {
+    var acts = [
+      { k: 'app.creada', t: 'App creada' }, { k: 'app.editada', t: 'App editada' },
+      { k: 'app.estado', t: 'Cambio de estado' }, { k: 'app.release', t: 'Versión publicada' },
+      { k: 'app.eliminada', t: 'App eliminada' }, { k: 'miembro.agregado', t: 'Miembro agregado' },
+      { k: 'consola.iniciada', t: 'Consola iniciada' }, { k: 'auth.login', t: 'Ingreso al equipo' }
+    ];
+    $('activityList').innerHTML = state.activity.map(function (a) {
+      var l = acts.find(function (x) { return x.k === a.action; });
+      var det = '';
+      if (a.detail) { try { var d = typeof a.detail === 'string' ? JSON.parse(a.detail) : a.detail; det = ' · ' + (d.slug || d.name || d.email || d.version || d.hacia || ''); } catch (e) {} }
+      return '<li><span class="nd"></span><div><b>' + (l ? l.t : a.action) + '</b> <span class="act">' + esc(a.actor) + '</span><p>' + esc((l ? '' : '') + a.action + det + ' — ' + fmtFull(a.at)) + '</p></div></li>';
+    }).join('');
+  }
+  function loadAll() {
+    return Promise.all([api('/api/apps'), api('/api/members'), api('/api/activity')])
+      .then(function (r) { state.apps = r[0].apps; state.members = r[1].members; state.activity = r[2].activity; renderStats(); renderApps(); renderTeam(); renderActivity(); })
+      .catch(function (e) { if (e.status === 401) { showLogin(); } else toast(e.message); });
+  }
+
+  // ---------- tabs ----------
+  document.querySelectorAll('nav.tabs button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      state.tab = b.dataset.tab;
+      document.querySelectorAll('nav.tabs button').forEach(function (x) { x.classList.toggle('active', x === b); });
+      document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active'); });
+      $('view-' + state.tab).classList.add('active');
+      if (state.tab === 'team' && !state.members.length) loadAll();
+      if (state.tab === 'activity' && !state.activity.length) loadAll();
+    });
+  });
+
+  // ---------- modales (abrir/cerrar) ----------
+  function openOv(id) { closeOv(); $(id).classList.add('open'); }
+  function closeOv() { document.querySelectorAll('.ov').forEach(function (o) { o.classList.remove('open'); }); }
+  document.querySelectorAll('.ov').forEach(function (ov) {
+    ov.addEventListener('click', function (e) { if (e.target === ov || e.target.hasAttribute('data-close')) ov.classList.remove('open'); });
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeOv(); });
+
+  // ---------- nueva / editar app ----------
+  var editingSlug = null;
+  $('newAppBtn').addEventListener('click', function () {
+    editingSlug = null;
+    var f = $('appForm'); f.reset();
+    f.brandColor.value = '#b7e078';
+    f.status.value = 'demo'; f.version.value = '0.1.0';
+    $('appModalTitle').textContent = 'Nueva app';
+    $('appModalSub').textContent = 'Se registra con el estándar POPUPS y aparece en el catálogo del equipo.';
+    $('appFormSubmit').textContent = 'Crear app';
+    $('appFormError').textContent = '';
+    openOv('modalApp');
+  });
+  $('appForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target, btn = f.querySelector('button[type=submit]');
+    btn.disabled = true;
+    var body = {
+      name: f.name.value, slug: f.slug.value, tagline: f.tagline.value, category: f.category.value,
+      status: f.status.value, version: f.version.value, brandColor: f.brandColor.value,
+      supabaseRef: f.supabaseRef.value,
+      urls: { site: f.site.value, admin: f.admin.value, repo: f.repo.value, docs: f.docs.value }
+    };
+    var req = editingSlug ? api('/api/apps/' + editingSlug, { method: 'PATCH', body: body }) : api('/api/apps', { method: 'POST', body: body });
+    req.then(function () { closeOv(); toast(editingSlug ? 'App actualizada.' : 'App creada. Ya aparece en el catálogo.'); loadAll(); })
+      .catch(function (er) { $('appFormError').textContent = er.message; })
+      .finally(function () { btn.disabled = false; });
+  });
+
+  // ---------- grid de apps ----------
+  $('appsGrid').addEventListener('click', function (e) {
+    if (e.target.closest('.links')) return; // los links abren directo
+    var card = e.target.closest('.card');
+    if (card) openDetail(card.dataset.slug);
+  });
+
+  // ---------- detalle de app ----------
+  var curApp = null;
+  function openDetail(slug) {
+    api('/api/apps/' + slug).then(function (d) { curApp = d.app; renderDetail(); openOv('modalDetail'); })
+      .catch(function (er) { toast(er.message); });
+  }
+  function renderDetail() {
+    var a = curApp;
+    var rels = (a.releases || []).map(function (r) {
+      return '<div class="item"><b>v' + esc(r.version) + '</b><span class="date">' + fmtFull(r.at) + (r.actor ? ' · ' + esc(r.actor) : '') + '</span>' + (r.summary ? '<p>' + esc(r.summary) + '</p>' : '') + '</div>';
+    }).join('') || '<p class="muted">Todavía no hay versiones registradas.</p>';
+    var notes = (a.notes || []).map(function (n) {
+      return '<div class="item"><b>' + esc(n.author) + '</b><span class="date">' + fmtFull(n.at) + '</span><p>' + esc(n.body) + '</p></div>';
+    }).join('') || '<p class="muted">Sin notas internas.</p>';
+    $('detailBody').innerHTML =
+      '<div class="top" style="display:flex;align-items:center;gap:12px">' + icn(a) + '<div style="flex:1"><h2 style="margin:0">' + esc(a.name) + '</h2><div class="slugc">' + esc(a.slug) + ' · ' + esc(a.category || 'sin categoría') + '</div></div>' + chip(a) + '</div>' +
+      (a.tagline ? '<p class="muted" style="margin:10px 0 0">' + esc(a.tagline) + '</p>' : '') +
+      '<dl class="kv"><dt>Versión</dt><dd>v' + esc(a.version || '0.0.0') + ' <span class="dim">(' + fmt(a.versionDate) + ')</span></dd>' +
+      '<dt>Sitio</dt><dd>' + (a.urls.site ? '<a href="' + esc(a.urls.site) + '" target="_blank" rel="noopener" style="color:var(--acc)">' + esc(a.urls.site) + '</a>' : '<span class="dim">—</span>') + '</dd>' +
+      '<dt>Admin</dt><dd>' + (a.urls.admin ? '<a href="' + esc(a.urls.admin) + '" target="_blank" rel="noopener" style="color:var(--acc)">' + esc(a.urls.admin) + '</a>' : '<span class="dim">—</span>') + '</dd>' +
+      '<dt>Repo</dt><dd>' + (a.urls.repo ? '<a href="' + esc(a.urls.repo) + '" target="_blank" rel="noopener" style="color:var(--acc)">' + esc(a.urls.repo) + '</a>' : '<span class="dim">—</span>') + '</dd>' +
+      '<dt>Supabase</dt><dd>' + esc(a.supabaseRef || '—') + '</dd>' +
+      '<dt>Creada</dt><dd>' + fmt(a.createdAt) + '</dd></dl>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">' +
+      '<button class="btn small" data-ad="edit">✎ Editar ficha</button>' +
+      '<button class="btn small" data-ad="release">+ Registrar versión</button>' +
+      '<button class="btn small" data-ad="note">+ Nota interna</button>' +
+      (a.status !== 'pausada' && a.status !== 'retirada' ? '<button class="btn small" data-ad="pause">⏸ Pausar</button>' : '') +
+      (a.status === 'pausada' ? '<button class="btn small" data-ad="reactivate" style="color:var(--prod)">▶ Reactivar</button>' : '') +
+      '<button class="btn small danger" data-ad="delete" style="margin-left:auto">🗑 Eliminar</button></div>' +
+      '<div class="sec"><h4>Versiones</h4>' + rels + '</div>' +
+      '<div class="sec"><h4>Notas internas</h4>' + notes + '</div>';
+  }
+  $('detailBody').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ad]');
+    if (!b) return;
+    var act = b.dataset.ad;
+    if (act === 'edit') {
+      var f = $('appForm'), a = curApp;
+      editingSlug = a.slug;
+      f.name.value = a.name; f.slug.value = a.slug; f.tagline.value = a.tagline || '';
+      f.category.value = a.category || ''; f.status.value = a.status; f.version.value = a.version || '';
+      f.brandColor.value = (a.brand && a.brand.color) || '#b7e078';
+      f.site.value = (a.urls && a.urls.site) || ''; f.admin.value = (a.urls && a.urls.admin) || '';
+      f.repo.value = (a.urls && a.urls.repo) || ''; f.docs.value = (a.urls && a.urls.docs) || '';
+      f.supabaseRef.value = a.supabaseRef || '';
+      $('appModalTitle').textContent = 'Editar app — ' + a.slug;
+      $('appModalSub').textContent = 'Los cambios se reflejan en el catálogo.';
+      $('appFormSubmit').textContent = 'Guardar cambios';
+      $('appFormError').textContent = '';
+      closeOv(); openOv('modalApp');
+    }
+    if (act === 'release') { $('relSub').textContent = curApp.name + ' · última: v' + (curApp.version || '—'); $('relError').textContent = ''; $('releaseForm').reset(); closeOv(); openOv('modalRelease'); }
+    if (act === 'note') { $('noteSub').textContent = curApp.name; $('noteError').textContent = ''; $('noteForm').reset(); closeOv(); openOv('modalNote'); }
+    if (act === 'pause') changeStatus('pausada');
+    if (act === 'reactivate') changeStatus('en_desarrollo');
+    if (act === 'delete') {
+      if (!confirm('¿Eliminar la app ' + curApp.name + ' (' + curApp.slug + ')?\n\nSe borra del catálogo. Los repos y sitios NO se tocan.')) return;
+      api('/api/apps/' + curApp.slug, { method: 'DELETE' }).then(function () { closeOv(); toast('App eliminada del catálogo.'); loadAll(); }).catch(function (er) { toast(er.message); });
+    }
+  });
+  function changeStatus(st) {
+    api('/api/apps/' + curApp.slug, { method: 'PATCH', body: { status: st } })
+      .then(function (d) { curApp = d.app; renderDetail(); toast('Estado actualizado a "' + LABELS[st] + '".'); loadAll(); })
+      .catch(function (er) { toast(er.message); });
+  }
+
+  // ---------- release / nota ----------
+  $('releaseForm').addEventListener('submit', function (e) {
+    e.preventDefault(); var btn = e.target.querySelector('button'); btn.disabled = true;
+    api('/api/apps/' + curApp.slug + '/releases', { method: 'POST', body: { version: e.target.version.value, summary: e.target.summary.value } })
+      .then(function () { closeOv(); toast('Versión registrada.'); openDetail(curApp.slug); loadAll(); })
+      .catch(function (er) { $('relError').textContent = er.message; }).finally(function () { btn.disabled = false; });
+  });
+  $('noteForm').addEventListener('submit', function (e) {
+    e.preventDefault(); var btn = e.target.querySelector('button'); btn.disabled = true;
+    api('/api/apps/' + curApp.slug + '/notes', { method: 'POST', body: { body: e.target.body.value } })
+      .then(function () { closeOv(); toast('Nota guardada.'); openDetail(curApp.slug); })
+      .catch(function (er) { $('noteError').textContent = er.message; }).finally(function () { btn.disabled = false; });
+  });
+
+  // ---------- equipo ----------
+  $('addMemberBtn').addEventListener('click', function () {
+    $('memberError').textContent = '';
+    api('/api/members', { method: 'POST', body: { name: $('mName').value, email: $('mEmail').value, role: $('mRole').value } })
+      .then(function () { $('mName').value = ''; $('mEmail').value = ''; toast('Miembro agregado.'); loadAll(); })
+      .catch(function (er) { $('memberError').textContent = er.message; });
+  });
+
+  // ---------- arranque ----------
+  if (state.token) { enterApp(); loadAll().catch(function () { showLogin(); }); } else showLogin();
+})();
+
+</script></script>
+</body>
+</html>
