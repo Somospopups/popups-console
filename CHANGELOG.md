@@ -24,3 +24,6 @@
 
 ## v0.4.1 · 2026-09-07
 - **Legibilidad del Panel APPI**: todo el panel adaptado al tema oscuro de la consola (textos, tarjetas, tablas, diálogos, botones y formularios con contraste correcto). Campos de texto claros para escribir cómodo.
+
+## v0.4.2 · 2026-09-07
+- **Corrección visual definitiva del Panel APPI**: eliminados todos los fondos blancos remanentes (tarjetas de KPIs y contenedores) que quedaban con texto claro encima — ahora todo usa el fondo oscuro del tema. Diálogos forzados al tema oscuro y campos de texto claros con placeholder visible.
