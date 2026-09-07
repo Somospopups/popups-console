@@ -21,3 +21,6 @@
   - Ingresos: consolidado mensual y detalle de pagos (24 meses).
   - Configuración: WhatsApp de contacto.
   - Los botones "◈ Admin" de APPI abren este panel nativo (ya no el iframe).
+
+## v0.4.1 · 2026-09-07
+- **Legibilidad del Panel APPI**: todo el panel adaptado al tema oscuro de la consola (textos, tarjetas, tablas, diálogos, botones y formularios con contraste correcto). Campos de texto claros para escribir cómodo.
