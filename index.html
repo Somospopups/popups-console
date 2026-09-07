@@ -224,6 +224,16 @@
         <div class="field"><label>Link del panel admin</label><input name="admin" placeholder="https://… (si existe)"></div>
       </div>
       <div class="row">
+        <div class="field"><label>Administración (botón ◈) — cómo se abre su panel</label>
+          <select name="adminMode">
+            <option value="auto" selected>Automática — la consola deduce sola</option>
+            <option value="direct">Navega a la app (panel propio grande, ej. APPI)</option>
+            <option value="embed">Panel dentro del popup (URL del panel, ej. Mi-Tienda #admin)</option>
+            <option value="none">Todavía no tiene panel</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
         <div class="field"><label>Repo GitHub</label><input name="repo" placeholder="https://github.com/Somospopups/…"></div>
         <div class="field"><label>Docs</label><input name="docs" placeholder="https://…"></div>
       </div>
@@ -308,6 +318,7 @@
         status: f.status || 'idea', version: f.version || '', versionDate: f.versionDate || '',
         urls: f.urls || { site: '', admin: '', repo: '', docs: '' },
         supabaseRef: f.supabaseRef || '', brand: f.brand || { color: '' },
+        adminMode: f.adminMode || '',
         createdAt: now, updatedAt: now, releases: [], notes: []
       };
     };
@@ -366,7 +377,7 @@
         if (!slug || slug.length < 2) return fail(400, 'Elegí un slug válido (ej. mi-app).');
         if (d.apps.some(function (a) { return a.slug === slug; })) return fail(409, 'Ese slug ya existe.');
         var t = new Date().toISOString();
-        var appNew = { slug: slug, name: clean(body.name, 60) || slug, tagline: clean(body.tagline, 120), category: clean(body.category, 40), status: ESTADOS_OK[body.status] ? body.status : 'idea', version: clean(body.version, 20) || '0.0.0', versionDate: clean(body.versionDate, 10) || t.slice(0, 10), urls: { site: clean(body.urls && body.urls.site, 300), admin: clean(body.urls && body.urls.admin, 300), repo: clean(body.urls && body.urls.repo, 300), docs: clean(body.urls && body.urls.docs, 300) }, supabaseRef: clean(body.supabaseRef, 60), brand: { color: /^#[0-9a-f]{6}$/i.test(body.brandColor || '') ? body.brandColor : '' }, createdAt: t, updatedAt: t, releases: [], notes: [] };
+        var appNew = { slug: slug, name: clean(body.name, 60) || slug, tagline: clean(body.tagline, 120), category: clean(body.category, 40), status: ESTADOS_OK[body.status] ? body.status : 'idea', version: clean(body.version, 20) || '0.0.0', versionDate: clean(body.versionDate, 10) || t.slice(0, 10), urls: { site: clean(body.urls && body.urls.site, 300), admin: clean(body.urls && body.urls.admin, 300), repo: clean(body.urls && body.urls.repo, 300), docs: clean(body.urls && body.urls.docs, 300) }, supabaseRef: clean(body.supabaseRef, 60), adminMode: (['auto','direct','embed','none'].indexOf(body.adminMode) >= 0) ? body.adminMode : '', brand: { color: /^#[0-9a-f]{6}$/i.test(body.brandColor || '') ? body.brandColor : '' }, createdAt: t, updatedAt: t, releases: [], notes: [] };
         d.apps.push(appNew); act(d, 'equipo', 'app.creada', { slug: slug, name: appNew.name }); setDB(d);
         return ok({ app: pubApp(appNew, true) });
       }
@@ -381,7 +392,7 @@
         if (b.status != null && ESTADOS_OK[b.status]) p.status = b.status;
         if (b.version != null) p.version = clean(b.version, 20);
         if (b.versionDate != null) p.versionDate = clean(b.versionDate, 10);
-        if (b.supabaseRef != null) p.supabaseRef = clean(b.supabaseRef, 60);
+        if (b.supabaseRef != null) p.supabaseRef = clean(b.supabaseRef, 60); if (b.adminMode != null && ['auto','direct','embed','none'].indexOf(b.adminMode) >= 0) p.adminMode = b.adminMode;
         if (b.urls) { p.urls = { site: clean(b.urls.site != null ? b.urls.site : p.urls.site, 300), admin: clean(b.urls.admin != null ? b.urls.admin : p.urls.admin, 300), repo: clean(b.urls.repo != null ? b.urls.repo : p.urls.repo, 300), docs: clean(b.urls.docs != null ? b.urls.docs : p.urls.docs, 300) }; }
         if (b.brandColor != null) p.brand.color = /^#[0-9a-f]{6}$/i.test(b.brandColor) ? b.brandColor : p.brand.color;
         p.updatedAt = new Date().toISOString();
@@ -523,6 +534,7 @@
     var f = $('appForm'); f.reset();
     f.brandColor.value = '#b7e078';
     f.status.value = 'demo'; f.version.value = '0.1.0';
+    f.adminMode.value = 'auto';
     $('appModalTitle').textContent = 'Nueva app';
     $('appModalSub').textContent = 'Se registra con el estándar POPUPS y aparece en el catálogo del equipo.';
     $('appFormSubmit').textContent = 'Crear app';
@@ -537,6 +549,7 @@
       name: f.name.value, slug: f.slug.value, tagline: f.tagline.value, category: f.category.value,
       status: f.status.value, version: f.version.value, brandColor: f.brandColor.value,
       supabaseRef: f.supabaseRef.value,
+      adminMode: f.adminMode.value,
       urls: { site: f.site.value, admin: f.admin.value, repo: f.repo.value, docs: f.docs.value }
     };
     var req = editingSlug ? api('/api/apps/' + editingSlug, { method: 'PATCH', body: body }) : api('/api/apps', { method: 'POST', body: body });
@@ -599,6 +612,7 @@
       f.site.value = (a.urls && a.urls.site) || ''; f.admin.value = (a.urls && a.urls.admin) || '';
       f.repo.value = (a.urls && a.urls.repo) || ''; f.docs.value = (a.urls && a.urls.docs) || '';
       f.supabaseRef.value = a.supabaseRef || '';
+      f.adminMode.value = a.adminMode || 'auto';
       $('appModalTitle').textContent = 'Editar app — ' + a.slug;
       $('appModalSub').textContent = 'Los cambios se reflejan en el catálogo.';
       $('appFormSubmit').textContent = 'Guardar cambios';
@@ -648,13 +662,27 @@
 
 
   /* ---------- ADMINISTRACIÓN por app: se ejecuta DENTRO del popup de la ficha ---------- */
+  var MODOS_ADMIN = ['auto', 'direct', 'embed', 'none'];
+  /* Decide cómo abre la administración de cada app (estándar POPUPS).
+     Cada app puede declararlo en su ficha o en su popups.app.json (admin.mode);
+     si no, la consola lo deduce sola. */
+  function adminConf(a) {
+    var site = (a.urls && a.urls.site) || '';
+    var adm = (a.urls && a.urls.admin) || '';
+    var m = String(a.adminMode || 'auto').toLowerCase();
+    if (m === 'direct' || a.slug === 'appi') { var u = adm || site; return { mode: u ? 'direct' : 'none', url: u }; }
+    if (m === 'embed') return { mode: (adm || site) ? 'embed' : 'none', url: adm || site };
+    if (m === 'none') return { mode: 'none', url: '' };
+    if (adm) return { mode: 'embed', url: adm };
+    if (site) { if (a.slug === 'mi-tienda') return { mode: 'embed', url: site + '#admin' }; return { mode: 'embed', url: site }; }
+    return { mode: 'none', url: '' };
+  }
   function openAdmin(slug) {
     var a = (curApp && curApp.slug === slug) ? curApp : null;
-    if (!a) {
-      for (var i = 0; i < state.apps.length; i++) { if (state.apps[i].slug === slug) { a = state.apps[i]; break; } }
-    }
+    if (!a) { for (var i = 0; i < state.apps.length; i++) { if (state.apps[i].slug === slug) { a = state.apps[i]; break; } } }
     if (!a) { toast('No se encontró la app.'); return; }
-    if (a.slug === 'appi') { window.location.href = 'https://somospopups.github.io/appi/'; return; }
+    var ac = adminConf(a);
+    if (ac.mode === 'direct') { window.location.href = ac.url; return; }
     var body = $('detailBody');
     if (!body) { toast('Abrí primero la ficha de la app.'); return; }
     var head = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">' +
@@ -662,15 +690,16 @@
       '<span class="muted">' + esc(a.slug) + '</span><span style="flex:1"></span>' +
       '<button class="btn small" data-aback>‹ Volver a la ficha</button></div>';
     var content = '';
-    
-      var u = (a.urls && (a.urls.admin || a.urls.site)) || '';
-      if (u) content = '<p class="muted" style="margin:0 0 10px">Este es el panel propio de la app (se muestra acá adentro). <a href="' + esc(u) + '" target="_blank" rel="noopener" style="color:var(--acc)">Abrir en pestaña ↗</a></p><iframe class="ext" src="' + esc(u) + '" title="Panel de ' + esc(a.name) + '"></iframe>';
-      else content = '<p class="muted">Esta app todavía no tiene panel de administración. Si definís su URL de admin en “Editar ficha”, se va a abrir acá.</p>';
+    if (ac.mode === 'embed' && ac.url) {
+      content = '<p class="muted" style="margin:0 0 10px;line-height:1.6">Este es el panel propio de la app (se muestra acá adentro). <a href="' + esc(ac.url) + '" target="_blank" rel="noopener" style="color:var(--acc)">Abrir en pestaña ↗</a></p>' +
+        '<iframe class="ext" src="' + esc(ac.url) + '" title="Panel de ' + esc(a.name) + '" style="width:100%;height:70vh;min-height:420px;border:1px solid var(--line);border-radius:14px;background:#fff;box-sizing:border-box"></iframe>';
+    } else {
+      content = '<p class="muted">Esta app todavía no tiene panel de administración. Si definís cómo se administra en “Editar ficha” (o en el popups.app.json de la app), el botón ◈ se va a activar solo.</p>';
+    }
     body.innerHTML = head + content;
     var bb = body.querySelector('[data-aback]');
     if (bb) bb.addEventListener('click', leaveAdmin);
-  }
-  function leaveAdmin() {
+  }function leaveAdmin() {
     if (curApp) {
       api('/api/apps/' + curApp.slug).then(function (d) { curApp = d.app; renderDetail(); }).catch(function () { renderDetail(); });
     } else renderDetail();

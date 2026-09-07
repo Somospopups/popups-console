@@ -63,3 +63,11 @@
 - **"◈ ADMINISTRACIÓN" de APPI lleva directo al panel real**: al presionarlo, la consola navega (misma pestaña) a la app APPI, que entra sola al panel de administrador cuando ya hay sesión de admin guardada.
 - Se retira el iframe embebido con piel POPUPS: APPI queda **exactamente como está** (sus propios colores y apartados, sin parámetros ni archivos extra).
 - El resto de las apps mantienen su administración dentro del popup de la ficha, como hasta ahora.
+
+## v0.12.0 · 2026-09-07
+- **Estándar de administración por app (adiós excepciones)**: el botón "◈ ADMINISTRACIÓN" ahora decide solo cómo abrir el panel de cada app, declarado en su ficha o en su `popups.app.json`:
+  - `direct` → navega a la app real (panel propio grande, caso APPI).
+  - `embed` → muestra el panel dentro del popup de la ficha (caso Mi-Tienda, que ahora abre directo su panel `#admin`).
+  - `none` → aviso de configurarlo (nunca más un botón muerto).
+  - `auto` (por defecto) → la consola deduce sola: APPI navega · Mi-Tienda abre `#admin` · si hay URL de panel la muestra · si no, aviso.
+- Formulario "Nueva app / Editar ficha" con selector de administración. Una app nueva **nace conectada** con solo declarar cómo se administra.
