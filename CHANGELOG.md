@@ -100,3 +100,10 @@
 
 ## v0.14.1 · 2026-09-07
 - **Tope máximo de 200 productos**: el plan más caro ya no es "ilimitado". Nadie puede cargar más de 200 productos en una tienda, así ningún cliente llena la base ni el almacenamiento. Por encima de 200 no hay plan automático: el caso se atiende con POPUPS (plan a medida).
+
+## v0.15.0 · 2026-09-07
+- **La consola opera las tiendas en la nube (Supabase)**: al abrir el panel, la lista se sincroniza con la nube (fuente de verdad). El estado de cada tienda (activa/suspendida/baja, plan, vencimiento) ahora **bloquea o habilita la tienda en vivo**, desde cualquier dispositivo.
+- **Vender tienda nueva ahora es alta real**: se crea en la nube con el plan elegido y se genera la **clave temporal del dueño** (guardada solo en tu consola; botón 🔑 Clave para volver a verla). Esa clave es la llave con la que el dueño va a entrar a su panel.
+- Cada acción (💳 +30 días, 🔒 Bloquear, 🔓 Desbloquear, 🗑 Baja, cambio de plan) sincroniza la nube al instante. Si no hay conexión, avisa y los cambios quedan solo locales.
+- **En la nube no se elimina para siempre**: las tiendas cloud ya no muestran "Eliminar definitiva" (se usa Baja, que archiva y permite reactivar). El límite real de productos del plan lo aplica la base.
+- Demo migrada a la nube: **@juan** (Panadería La Espiga, plan 50) y **@mariela** (Boutique Mariela, plan 25) con catálogos propios. Sus claves demo: `juan-demo` / `mariela-demo`.

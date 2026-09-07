@@ -492,8 +492,9 @@ function seedDB() {
           while (arrC.some(function (c) { return c.id === idF; })) { idF = idC + '-' + kC; kC++; }
           var dC = new Date(); dC.setDate(dC.getDate() + 30);
           var qC = function (v) { return (v < 10 ? '0' : '') + v; };
-          var nc = { id: idF, owner: ownerC, biz: bizC, planId: (function () { for (var pI = 0; pI < MT_PLANS.length; pI++) { if (MT_PLANS[pI].id === body.planId) return body.planId; } return 'p25'; })(), contact: clean(body.contact, 120), paidUntil: dC.getFullYear() + '-' + qC(dC.getMonth() + 1) + '-' + qC(dC.getDate()), status: 'activa', note: '', createdAt: new Date().toISOString() };
-          arrC.push(nc); act(d, 'equipo', 'tienda.creada', { slug: mCl[1], cliente: idF, owner: ownerC }); setDB(d);
+          var nc = { key: 'mt' + Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-6), id: idF, owner: ownerC, biz: bizC, planId: (function () { for (var pI = 0; pI < MT_PLANS.length; pI++) { if (MT_PLANS[pI].id === body.planId) return body.planId; } return 'p25'; })(), contact: clean(body.contact, 120), paidUntil: dC.getFullYear() + '-' + qC(dC.getMonth() + 1) + '-' + qC(dC.getDate()), status: 'activa', note: '', createdAt: new Date().toISOString() };
+          arrC.push(nc); act(d, 'equipo', 'tienda.creada', { slug: mCl[1], cliente: idF, owner: ownerC });
+          clCloudSync(nc, 'create'); setDB(d);
           return ok({ client: nc });
         }
         if (method === 'POST' && mCl[2]) {
@@ -502,12 +503,12 @@ function seedDB() {
           if (!cc) return fail(404, 'Cliente no encontrado.');
           var actC = body.action || '';
           function sumarDias(iso0, diasN) { var hoy0 = new Date(); var b0 = iso0 && iso0 >= hoyIso ? new Date(iso0 + 'T00:00:00') : hoy0; b0.setDate(b0.getDate() + diasN); var q0 = function (v) { return (v < 10 ? '0' : '') + v; }; return b0.getFullYear() + '-' + q0(b0.getMonth() + 1) + '-' + q0(b0.getDate()); }
-          if (actC === 'pay') { cc.paidUntil = sumarDias(cc.paidUntil, 30); cc.status = 'activa'; delete cc._auto; act(d, 'equipo', 'tienda.pago', { slug: mCl[1], cliente: cidC, vence: cc.paidUntil }); setDB(d); return ok({ client: cc }); }
-          if (actC === 'suspend') { cc.status = 'suspendida'; act(d, 'equipo', 'tienda.bloqueada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
-          if (actC === 'reactivate') { cc.paidUntil = sumarDias(cc.paidUntil, 7); cc.status = 'activa'; delete cc._auto; act(d, 'equipo', 'tienda.desbloqueada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
-          if (actC === 'baja') { cc.status = 'baja'; cc.bajaAt = new Date().toISOString(); act(d, 'equipo', 'tienda.baja', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
-          if (actC === 'plan') { var plId = body.planId; var plOk = false; for (var plI = 0; plI < MT_PLANS.length; plI++) { if (MT_PLANS[plI].id === plId) plOk = true; } if (plOk) { cc.planId = plId; act(d, 'equipo', 'tienda.plan', { slug: mCl[1], cliente: cidC, plan: plId }); setDB(d); } return ok({ client: cc }); }
-          if (actC === 'delete') { var iC = arrC.findIndex(function (x) { return x.id === cidC; }); arrC.splice(iC, 1); act(d, 'equipo', 'tienda.eliminada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ ok: true }); }
+          if (actC === 'pay') { cc.paidUntil = sumarDias(cc.paidUntil, 30); cc.status = 'activa'; delete cc._auto; act(d, 'equipo', 'tienda.pago', { slug: mCl[1], cliente: cidC, vence: cc.paidUntil }); clCloudSync(cc, 'pay'); setDB(d); return ok({ client: cc }); }
+          if (actC === 'suspend') { cc.status = 'suspendida'; act(d, 'equipo', 'tienda.bloqueada', { slug: mCl[1], cliente: cidC }); clCloudSync(cc, 'suspend'); setDB(d); return ok({ client: cc }); }
+          if (actC === 'reactivate') { cc.paidUntil = sumarDias(cc.paidUntil, 7); cc.status = 'activa'; delete cc._auto; act(d, 'equipo', 'tienda.desbloqueada', { slug: mCl[1], cliente: cidC }); clCloudSync(cc, 'reactivate'); setDB(d); return ok({ client: cc }); }
+          if (actC === 'baja') { cc.status = 'baja'; cc.bajaAt = new Date().toISOString(); act(d, 'equipo', 'tienda.baja', { slug: mCl[1], cliente: cidC }); clCloudSync(cc, 'baja'); setDB(d); return ok({ client: cc }); }
+          if (actC === 'plan') { var plId = body.planId; var plOk = false; for (var plI = 0; plI < MT_PLANS.length; plI++) { if (MT_PLANS[plI].id === plId) plOk = true; } if (plOk) { cc.planId = plId; act(d, 'equipo', 'tienda.plan', { slug: mCl[1], cliente: cidC, plan: plId }); clCloudSync(cc, 'plan'); setDB(d); } return ok({ client: cc }); }
+          if (actC === 'delete' && cc.cloud) return fail(400, 'En la nube no se elimina para siempre: usá Dar de baja (queda archivada y se puede reactivar).'); if (actC === 'delete') { var iC = arrC.findIndex(function (x) { return x.id === cidC; }); arrC.splice(iC, 1); act(d, 'equipo', 'tienda.eliminada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ ok: true }); }
           return fail(400, 'Acción inválida.');
         }
         return fail(404, 'Ruta de clientes no encontrada.');
@@ -772,7 +773,7 @@ function seedDB() {
       '<button class="btn small" data-aback>‹ Volver a la ficha</button></div>';
     var content = '';
     if (ac.mode === 'clientes') {
-      content = '<div class="cl-ctx">🧑‍💼 <b>Panel POPUPS</b> — acá vivís las ventas de esta app: altas, pagos, vencimientos, bloqueos y bajas. Cada dueño entra <b>solo</b> con su link y edita su tienda a gusto; si no paga, su página queda suspendida (ve el cartel y no puede vender).</div><div id="clientsPanel">' + clientesHTML(a) + '</div>';
+      content = '<div class="cl-ctx">🧑‍💼 <b>Panel POPUPS</b> — acá vivís las ventas de esta app: altas, pagos, vencimientos, bloqueos y bajas. Cada dueño entra <b>solo</b> con su link y edita su tienda a gusto; si no paga, su página queda suspendida (ve el cartel y no puede vender).</div><div id="clientsPanel">' + '<div class="cl-empty">Cargando tiendas desde la nube…</div>' + '</div>';
     } else if (ac.mode === 'embed' && ac.url) {
       content = '<p class="muted" style="margin:0 0 10px;line-height:1.6">Este es el panel propio de la app (se muestra acá adentro). <a href="' + esc(ac.url) + '" target="_blank" rel="noopener" style="color:var(--acc)">Abrir en pestaña ↗</a></p>' +
         '<iframe class="ext" src="' + esc(ac.url) + '" title="Panel de ' + esc(a.name) + '" style="width:100%;height:70vh;min-height:420px;border:1px solid var(--line);border-radius:14px;background:#fff;box-sizing:border-box"></iframe>';
@@ -780,7 +781,7 @@ function seedDB() {
       content = '<p class="muted">Esta app todavía no tiene panel de administración. Si definís cómo se administra en “Editar ficha” (o en el popups.app.json de la app), el botón ◈ se va a activar solo.</p>';
     }
     body.innerHTML = head + content;
-    if (ac.mode === 'clientes') bindClientesPanel(a);
+    if (ac.mode === 'clientes') { bindClientesPanel(a); clPanelLoad(a); }
     var bb = body.querySelector('[data-aback]');
     if (bb) bb.addEventListener('click', leaveAdmin);
   }function leaveAdmin() {
@@ -875,7 +876,81 @@ function seedDB() {
     var sub = (c.biz ? 'Dueño: ' + esc(c.owner) + ' · ' : '') + '@' + esc(c.id) + (c.contact ? ' · ' + esc(c.contact) : '');
     return '<div class="cl-owner">' + nm + '</div><div class="cl-sub">' + sub + '</div>';
   }
-  function clPlanSelect(c) {
+    // ---- Nube Supabase: la consola opera las tiendas en vivo ----
+  var clCloudOk = true;          // última sincronización con la nube
+  var clCloudBusy = false;
+  function clPin() { try { return PIN_EQUIPO || '2468'; } catch (e) { return '2468'; } }
+  function clRpc(action, payload) {
+    return fetch('https://zfnlcfnutnuatrhgbbci.supabase.co/rest/v1/rpc/api_admin', {
+      method: 'POST',
+      headers: { 'apikey': 'sb_publishable_OXtOk77qP8Q1RX6IOOPj8A_qAqLEe_-',
+                 'Authorization': 'Bearer sb_publishable_OXtOk77qP8Q1RX6IOOPj8A_qAqLEe_-',
+                 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_pin: clPin(), p_action: action, p: payload || {} })
+    }).then(function (r) { return r.json(); });
+  }
+  function clMapRow(x) {
+    return { id: x.id, owner: x.owner || '', biz: x.biz || '', contact: x.contact || '',
+      note: x.note || '', planId: x.plan_id || 'p25', status: x.status || 'suspendida',
+      paidUntil: x.paid_until || null, createdAt: x.created_at || new Date().toISOString(),
+      bajaAt: x.baja_at || null, cloud: true };
+  }
+  function clCloudPull() {
+    if (clCloudBusy || clCurrentSlug !== 'mi-tienda') return Promise.resolve();
+    clCloudBusy = true;
+    return clRpc('list', {}).then(function (r) {
+      if (!r || r.ok !== true) { clCloudOk = false; return; }
+      clCloudOk = true;
+      var d = getDB(); if (!d.clients) d.clients = {}; if (!d.clients['mi-tienda']) d.clients['mi-tienda'] = [];
+      var arr = d.clients['mi-tienda'];
+      var changed = false;
+      (r.stores || []).forEach(function (x) {
+        var i = -1;
+        for (var k = 0; k < arr.length; k++) if (arr[k].id === x.id) { i = k; break; }
+        if (i === -1) { arr.push(clMapRow(x)); changed = true; return; }
+        var c = arr[i];
+        var map = clMapRow(x);
+        map.key = c.key;                    // la clave del dueño vive solo en la consola
+        if (JSON.stringify(map) !== JSON.stringify(c)) { arr[i] = map; changed = true; }
+      });
+      if (changed) setDB(d);
+    }).catch(function () { clCloudOk = false; }).then(function () { clCloudBusy = false; });
+  }
+  function clCloudSync(c, act) {
+    if (!c || !MT_PLANS || clCurrentSlug !== 'mi-tienda') return;
+    var p = { id: c.id };
+    if (act === 'create') {
+      clRpc('create_store', { id: c.id, biz: c.biz, owner: c.owner, contact: c.contact,
+        note: c.note || '', plan_id: c.planId, key: c.key || 'mt-clave', paid_until: c.paidUntil || null, cfg: {} })
+        .then(function (r) {
+          if (!r || r.ok !== true) { clCloudOk = false; try { toast('⚠ La tienda no se creó en la nube: ' + (r && r.error || 'sin conexión')); } catch (e) {} return; }
+          c.cloud = true; try { setDB(getDB()); } catch (e) {}
+        }).catch(function () { clCloudOk = false; });
+      return;
+    }
+    if (c.cloud !== true) return; // solo las que ya viven en la nube
+    if (act === 'plan') { p = { id: c.id, plan_id: c.planId }; act = 'set_plan'; }
+    else if (act === 'pay' || act === 'reactivate') { p.status = 'activa'; p.paid_until = c.paidUntil; }
+    else if (act === 'suspend') { p.status = 'suspendida'; }
+    else if (act === 'baja') { p.status = 'baja'; }
+    else return;
+    clRpc(act === 'set_plan' ? 'set_plan' : 'set', p).then(function (r) {
+      if (!r || r.ok !== true) { clCloudOk = false; try { toast('⚠ No se pudo sincronizar con la nube: ' + (r && r.error || 'sin conexión')); } catch (e) {} }
+      else clCloudOk = true;
+    }).catch(function () { clCloudOk = false; });
+  }
+  function clPanelLoad(a) {
+    if (!a) return;
+    function paint() {
+      var p = $('clientsPanel');
+      if (!p) return;
+      p.innerHTML = clientesHTML(a);
+      bindClientesPanel(a);
+    }
+    if (a.slug !== 'mi-tienda') { paint(); return; }
+    clCloudPull().then(paint);
+  }
+function clPlanSelect(c) {
     var opts = '';
     for (var i = 0; i < MT_PLANS.length; i++) {
       var p = MT_PLANS[i];
@@ -894,7 +969,10 @@ function seedDB() {
     var tot = arr.length, act = 0, sus = 0, mensual = 0;
     arr.forEach(function (c) { if (c.status === 'activa') { act++; mensual += planOf(c).price; } else sus++; });
     var warn = arr.filter(function (c) { return clState(c).k === 'warn'; }).length;
-    var stats = '<div class="cl-stats">' +
+    var cloudLine = (clCurrentSlug === 'mi-tienda') ? '<div style="margin:0 0 10px;font-size:12px">' + (clCloudOk
+        ? '<span style="color:#7ccb9a">☁ Nube conectada</span> · el estado acá bloquea y desbloquea la tienda en vivo'
+        : '<span style="color:#e3b36a">⚠ Sin conexión a la nube: los cambios quedan SOLO locales (la tienda no se actualiza)</span>') + '</div>' : '';
+    var stats = cloudLine + '<div class="cl-stats">' +
       '<div class="cl-stat"><b>' + tot + '</b><span>Tiendas</span></div>' +
       '<div class="cl-stat"><b style="color:#7ccb9a">' + act + '</b><span>Activas</span></div>' +
       '<div class="cl-stat"><b style="color:#e08a5f">' + sus + '</b><span>Suspendidas</span></div>' +
@@ -919,7 +997,7 @@ function seedDB() {
           '<td>' + linkCell(c) + '</td>' +
           '<td><div class="cl-acts">' +
           '<button class="btn small" data-ca="reactivate" data-cid="' + esc(c.id) + '" style="color:#7ccb9a">↩ Reactivar</button>' +
-          '<button class="btn small danger" data-ca="delete" data-cid="' + esc(c.id) + '">🗑 Eliminar definitiva</button>' +
+          (c.cloud ? '' : '<button class="btn small danger" data-ca="delete" data-cid="' + esc(c.id) + '">🗑 Eliminar definitiva</button>') +
           '</div></td></tr>';
       }).join('');
       return stats + togg + '<div style="overflow-x:auto"><table class="cl-table"><thead><tr><th>Tienda / dueño</th><th>Estado</th><th>Dada de baja</th><th>Link</th><th style="text-align:right">Acciones</th></tr></thead><tbody>' + rowsB + '</tbody></table></div>';
@@ -939,6 +1017,7 @@ function seedDB() {
         '<td style="white-space:nowrap">' + (c.paidUntil ? clFmt(c.paidUntil) : '—') + '</td>' +
         '<td>' + linkCell(c) + '</td>' +
         '<td><div class="cl-acts">' +
+        (c.cloud && c.key ? '<button class="btn small" data-ca="key" data-cid="' + esc(c.id) + '">🔑 Clave</button>' : '') +
         '<button class="btn small" data-ca="pay" data-cid="' + esc(c.id) + '">💳 +30 días</button>' + susBtn +
         '<button class="btn small danger" data-ca="baja" data-cid="' + esc(c.id) + '">🗑 Dar de baja</button>' +
         '</div></td></tr>';
@@ -946,9 +1025,9 @@ function seedDB() {
     return stats + togg +
       '<div style="margin-bottom:12px"><button class="btn small" id="btnNewClient" style="background:var(--ink);color:#10130e;border-color:var(--ink)">＋ Vender tienda nueva</button></div>' +
       '<div style="overflow-x:auto"><table class="cl-table"><thead><tr><th>Tienda / dueño</th><th>Plan (cambiable)</th><th>Estado</th><th>Vence</th><th>Link del dueño</th><th style="text-align:right">Acciones POPUPS</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
-  }
-  function refreshClientesPanel() {
+  }  async function refreshClientesPanel() {
     if (!clCurrentSlug) return;
+    await clCloudPull();
     var p = $('clientsPanel');
     if (!p) return;
     var a = null;
@@ -990,6 +1069,12 @@ function seedDB() {
         var c = null;
         for (var j = 0; j < arr.length; j++) { if (arr[j].id === cid) { c = arr[j]; break; } }
         if (!c) { toast('No se encontró la tienda.'); return; }
+if (actn === 'key') {
+          if (!c.key) { toast('Esta tienda no tiene clave guardada (se creó antes de la nube).'); return; }
+          var kmsg = 'Clave de acceso del dueño @' + c.id + ' — pasásela SOLO al dueño:\n\n' + c.key + '\n\nEs la llave de su panel: con ella entra y administra su tienda.';
+          try { var kk = window.prompt(kmsg, c.key); if (kk === null) return; } catch (e2) { alert(kmsg); }
+          return;
+        }
         if (actn === 'copy') {
           var lnk = clLinkOf(c);
           var done = function () { toast('Link copiado ✅'); };
