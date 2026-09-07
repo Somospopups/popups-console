@@ -83,3 +83,7 @@
 ## v0.13.1 · 2026-09-07
 - Al vender una tienda nueva ahora se puede cargar el **nombre de la empresa / local** además del dueño (opcional). La empresa se muestra destacada en el panel y el link se arma con su nombre (si no hay, usa el del dueño).
 - Las tiendas demo ya tienen empresa: Panadería La Espiga (Juan) y Boutique Mariela (Mariela).
+
+## v0.13.2 · 2026-09-07
+- **Bajas con archivo (no se borra nada por accidente)**: el botón "🗑 Dar de baja" de una tienda la saca de la lista activa pero la **guarda en el archivo** (pestaña "🗄 Bajas"): su link queda suspendido y el registro se conserva con la fecha de baja.
+- Desde el archivo se puede **↩ Reactivar** (vuelve a la lista activa y su página funciona de nuevo) o **🗑 Eliminar definitiva** (borrado real, con confirmación doble).

@@ -497,7 +497,8 @@ function seedDB() {
           if (actC === 'pay') { cc.paidUntil = sumarDias(cc.paidUntil, 30); cc.status = 'activa'; delete cc._auto; act(d, 'equipo', 'tienda.pago', { slug: mCl[1], cliente: cidC, vence: cc.paidUntil }); setDB(d); return ok({ client: cc }); }
           if (actC === 'suspend') { cc.status = 'suspendida'; act(d, 'equipo', 'tienda.bloqueada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
           if (actC === 'reactivate') { cc.paidUntil = sumarDias(cc.paidUntil, 7); cc.status = 'activa'; delete cc._auto; act(d, 'equipo', 'tienda.desbloqueada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
-          if (actC === 'delete') { var iC = arrC.findIndex(function (x) { return x.id === cidC; }); arrC.splice(iC, 1); act(d, 'equipo', 'tienda.baja', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ ok: true }); }
+          if (actC === 'baja') { cc.status = 'baja'; cc.bajaAt = new Date().toISOString(); act(d, 'equipo', 'tienda.baja', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ client: cc }); }
+          if (actC === 'delete') { var iC = arrC.findIndex(function (x) { return x.id === cidC; }); arrC.splice(iC, 1); act(d, 'equipo', 'tienda.eliminada', { slug: mCl[1], cliente: cidC }); setDB(d); return ok({ ok: true }); }
           return fail(400, 'Acción inválida.');
         }
         return fail(404, 'Ruta de clientes no encontrada.');
@@ -837,38 +838,77 @@ function seedDB() {
     return { k: 'ok', t: 'Al día · vence ' + clFmt(c.paidUntil) };
   }
   function clLinkOf(c) { return 'https://somospopups.github.io/Mi-Tienda/?tienda=' + c.id; }
+  var clTab = 'act';
+  function clChipHtml(c) {
+    var s = clState(c);
+    return '<span class="cl-chip ' + s.k + '"><i></i>' + s.t + '</span>';
+  }
+  function clNameHtml(c) {
+    var nm = esc(c.biz || c.owner);
+    var sub = (c.biz ? 'Dueño: ' + esc(c.owner) + ' · ' : '') + '@' + esc(c.id) + (c.contact ? ' · ' + esc(c.contact) : '');
+    return '<div class="cl-owner">' + nm + '</div><div class="cl-sub">' + sub + '</div>';
+  }
   function clientesHTML(a) {
-    var arr = clientesData(a.slug);
-    var tot = arr.length;
-    var act = arr.filter(function (c) { return c.status === 'activa'; }).length;
-    var sus = tot - act;
+    var arrAll = clientesData(a.slug);
+    var hoy = clTodayIso(), ch = false;
+    arrAll.forEach(function (c) { if (c.status === 'activa' && c.paidUntil && c.paidUntil < hoy) { c.status = 'suspendida'; ch = true; } });
+    if (ch) setDB(getDB());
+    var arr = arrAll.filter(function (c) { return c.status !== 'baja'; });
+    var bajas = arrAll.filter(function (c) { return c.status === 'baja'; });
+    if (clTab === 'baja' && !bajas.length) clTab = 'act';
+    var tot = arr.length, act = 0, sus = 0;
+    arr.forEach(function (c) { if (c.status === 'activa') act++; else sus++; });
     var warn = arr.filter(function (c) { return clState(c).k === 'warn'; }).length;
-    var stats = '<div class="cl-stats"><div class="cl-stat"><b>' + tot + '</b><span>Tiendas</span></div>' +
+    var stats = '<div class="cl-stats">' +
+      '<div class="cl-stat"><b>' + tot + '</b><span>Tiendas</span></div>' +
       '<div class="cl-stat"><b style="color:#7ccb9a">' + act + '</b><span>Activas</span></div>' +
       '<div class="cl-stat"><b style="color:#e08a5f">' + sus + '</b><span>Suspendidas</span></div>' +
       '<div class="cl-stat"><b style="color:#e3b36a">' + warn + '</b><span>Vencen ≤ 7 días</span></div></div>';
-    if (!arr.length) return stats + '<div class="cl-empty">Todavía no vendiste ninguna tienda de esta app. Tocá “＋ Vender tienda nueva” y creá el link del primer dueño.</div>';
+    function tb(sel, txt, n) {
+      var on = clTab === sel;
+      return '<button class="btn small" data-cltab="' + sel + '" style="' + (on ? 'background:var(--ink);color:#10130e;border-color:var(--ink)' : '') + '">' + txt + (n != null ? ' (' + n + ')' : '') + '</button>';
+    }
+    var togg = '<div style="display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap">' +
+      tb('act', '🏪 Tiendas', tot) + tb('baja', '🗄 Bajas', bajas.length) + '</div>';
+    function linkCell(c) {
+      return '<div class="cl-sub" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(clLinkOf(c)) + '</div>' +
+        '<button class="cl-linkbtn" data-ca="copy" data-cid="' + esc(c.id) + '">Copiar</button> · <a class="cl-linkbtn" href="' + esc(clLinkOf(c)) + '" target="_blank" rel="noopener">Abrir ↗</a>';
+    }
+    if (clTab === 'baja') {
+      if (!bajas.length) return stats + togg + '<div class="cl-empty">No hay bajas guardadas. Cuando des de baja una tienda, queda acá archivada y podés reactivarla cuando quieras.</div>';
+      var rowsB = bajas.map(function (c) {
+        return '<tr><td>' + clNameHtml(c) + '</td>' +
+          '<td><span class="cl-chip sus"><i></i>De baja</span></td>' +
+          '<td style="white-space:nowrap">Desde ' + clFmt((c.bajaAt || '').slice(0, 10)) + '</td>' +
+          '<td>' + linkCell(c) + '</td>' +
+          '<td><div class="cl-acts">' +
+          '<button class="btn small" data-ca="reactivate" data-cid="' + esc(c.id) + '" style="color:#7ccb9a">↩ Reactivar</button>' +
+          '<button class="btn small danger" data-ca="delete" data-cid="' + esc(c.id) + '">🗑 Eliminar definitiva</button>' +
+          '</div></td></tr>';
+      }).join('');
+      return stats + togg + '<div style="overflow-x:auto"><table class="cl-table"><thead><tr><th>Tienda / dueño</th><th>Estado</th><th>Dada de baja</th><th>Link</th><th style="text-align:right">Acciones</th></tr></thead><tbody>' + rowsB + '</tbody></table></div>';
+    }
+    if (!arr.length) {
+      return stats + togg + '<div class="cl-empty">Todavía no vendiste ninguna tienda de esta app. Tocá “＋ Vender tienda nueva” y creá el link del primer dueño.</div>' +
+        '<div style="margin-top:14px"><button class="btn small" id="btnNewClient" style="background:var(--ink);color:#10130e;border-color:var(--ink)">＋ Vender tienda nueva</button></div>';
+    }
     var rows = arr.map(function (c) {
-      var s = clState(c);
-      var chip = '<span class="cl-chip ' + s.k + '"><i></i>' + s.t + '</span>';
+      var chip = clChipHtml(c);
       var susBtn = (c.status === 'activa')
         ? '<button class="btn small" data-ca="suspend" data-cid="' + esc(c.id) + '" style="color:#e08a5f">🔒 Bloquear</button>'
         : '<button class="btn small" data-ca="reactivate" data-cid="' + esc(c.id) + '" style="color:#7ccb9a">🔓 Desbloquear</button>';
-      var nmRow = esc(c.biz || c.owner);
-      var subRow = (c.biz ? 'Dueño: ' + esc(c.owner) + ' · ' : '') + '@' + esc(c.id) + (c.contact ? ' · ' + esc(c.contact) : '');
-      return '<tr><td><div class="cl-owner">' + nmRow + '</div><div class="cl-sub">' + subRow + '</div></td>' +
+      return '<tr><td>' + clNameHtml(c) + '</td>' +
         '<td>' + chip + '</td>' +
         '<td style="white-space:nowrap">' + (c.paidUntil ? clFmt(c.paidUntil) : '—') + '</td>' +
-        '<td><div class="cl-sub" style="max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(clLinkOf(c)) + '</div>' +
-        '<button class="cl-linkbtn" data-ca="copy" data-cid="' + esc(c.id) + '">Copiar</button> · <a class="cl-linkbtn" href="' + esc(clLinkOf(c)) + '" target="_blank" rel="noopener">Abrir ↗</a></td>' +
+        '<td>' + linkCell(c) + '</td>' +
         '<td><div class="cl-acts">' +
         '<button class="btn small" data-ca="pay" data-cid="' + esc(c.id) + '">💳 +30 días</button>' + susBtn +
-        '<button class="btn small danger" data-ca="del" data-cid="' + esc(c.id) + '">🗑 Baja</button>' +
+        '<button class="btn small danger" data-ca="baja" data-cid="' + esc(c.id) + '">🗑 Dar de baja</button>' +
         '</div></td></tr>';
     }).join('');
-    return stats +
+    return stats + togg +
       '<div style="margin-bottom:12px"><button class="btn small" id="btnNewClient" style="background:var(--ink);color:#10130e;border-color:var(--ink)">＋ Vender tienda nueva</button></div>' +
-      '<div style="overflow-x:auto"><table class="cl-table"><thead><tr><th>Dueño</th><th>Estado</th><th>Vence</th><th>Link del dueño</th><th style="text-align:right">Acciones POPUPS</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+      '<div style="overflow-x:auto"><table class="cl-table"><thead><tr><th>Tienda / dueño</th><th>Estado</th><th>Vence</th><th>Link del dueño</th><th style="text-align:right">Acciones POPUPS</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
   function refreshClientesPanel() {
     if (!clCurrentSlug) return;
@@ -884,11 +924,12 @@ function seedDB() {
     clCurrentSlug = a.slug;
     var p = $('clientsPanel');
     if (!p) return;
-    var nb = $('btnNewClient');
-    if (nb && !nb.dataset.bnd) {
-      nb.dataset.bnd = '1';
-      nb.addEventListener('click', function () { openClientModal(); });
+    var tabs = p.querySelectorAll('[data-cltab]');
+    for (var tI = 0; tI < tabs.length; tI++) {
+      if (!tabs[tI].dataset.bndt) { tabs[tI].dataset.bndt = '1'; tabs[tI].addEventListener('click', function () { clTab = this.dataset.cltab; refreshClientesPanel(); }); }
     }
+    var nb = $('btnNewClient');
+    if (nb && !nb.dataset.bnd) { nb.dataset.bnd = '1'; nb.addEventListener('click', function () { openClientModal(); }); }
     var acc = p.querySelectorAll('[data-ca]');
     for (var i = 0; i < acc.length; i++) {
       var b = acc[i];
@@ -909,18 +950,25 @@ function seedDB() {
         function go() {
           api('/api/apps/' + clCurrentSlug + '/clients/' + cid, { method: 'POST', body: { action: actn } })
             .then(function () {
-              var msg = actn === 'pay' ? 'Pago registrado: +30 días ✅' : (actn === 'suspend' ? 'Tienda bloqueada 🔒' : (actn === 'reactivate' ? 'Tienda desbloqueada 🔓' : 'Tienda dada de baja'));
-              toast(msg); refreshClientesPanel(); loadAll();
+              var msg = actn === 'pay' ? 'Pago registrado: +30 días ✅'
+                : actn === 'suspend' ? 'Tienda bloqueada 🔒 — su página quedó suspendida'
+                : actn === 'reactivate' ? 'Tienda reactivada 🔓 — su página vuelve a funcionar'
+                : actn === 'baja' ? 'Tienda dada de baja 🗄 — quedó guardada en el archivo'
+                : 'Tienda eliminada definitivamente';
+              toast(msg);
+              if (actn === 'reactivate' && clTab === 'baja') clTab = 'act';
+              refreshClientesPanel(); loadAll();
             })
             .catch(function (er) { toast(er.message || 'Error'); });
         }
-        if (actn === 'del') { if (confirm('¿Dar de baja definitiva a ' + c.owner + ' (@' + c.id + ')? Su link dejará de funcionar.')) go(); }
+        if (actn === 'delete') { if (confirm('¿Eliminar DEFINITIVAMENTE a ' + c.owner + ' (@' + c.id + ')? Esta acción no se puede deshacer.')) go(); }
+        else if (actn === 'baja') { if (confirm('¿Dar de baja a ' + c.owner + ' (@' + c.id + ')? Su link queda suspendido y la tienda se guarda en el archivo de bajas, para reactivarla cuando quieras.')) go(); }
         else if (actn === 'suspend') { if (confirm('¿Bloquear la página de ' + c.owner + '? El dueño verá su tienda suspendida hasta regularizar.')) go(); }
         else go();
       });
     }
   }
-  function openClientModal() {
+function openClientModal() {
     var f = $('clientForm'); if (f) f.reset();
     $('clientFormError').textContent = '';
     $('clModalTitle').textContent = 'Vender tienda nueva — ' + clCurrentSlug;
