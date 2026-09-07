@@ -42,3 +42,7 @@
   - APPI: panel nativo de administración real (Resumen · Solicitudes · Cuentas · Ingresos · Configuración) conectado al backend de APPI (la clave no se guarda; sesión con renovación automática).
   - Apps con URL de admin definida: su panel se abre adentro (con opción "Abrir en pestaña").
   - Apps sin panel aún: aviso claro para configurarlo en "Editar ficha".
+
+## v0.8.0 · 2026-09-07
+- **Acciones de la ficha alineadas en grilla pareja** (Administración, Editar, Registrar versión, Nota, Pausar y Eliminar quedan parejos; se elimina el desfase de "Eliminar").
+- **Registro de versiones automático**: la consola lee el `popups.app.json` (estándar) de cada app en su repo de GitHub y, si detecta una versión nueva, la registra sola en Versiones (con aviso ⚡). Verifica al entrar a la consola y al abrir la pestaña Apps (cada 10 min como máximo). El botón "+ Registrar versión" queda como registro manual.

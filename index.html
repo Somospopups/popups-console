@@ -575,14 +575,14 @@
       '<dt>Repo</dt><dd>' + (a.urls.repo ? '<a href="' + esc(a.urls.repo) + '" target="_blank" rel="noopener" style="color:var(--acc)">' + esc(a.urls.repo) + '</a>' : '<span class="dim">—</span>') + '</dd>' +
       '<dt>Supabase</dt><dd>' + esc(a.supabaseRef || '—') + '</dd>' +
       '<dt>Creada</dt><dd>' + fmt(a.createdAt) + '</dd></dl>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">' +
-      '<button class="btn small" data-ad="admin" style="background:var(--acc);border-color:var(--acc);color:#10130e;font-weight:800">◈ ADMINISTRACIÓN</button>' +
-      '<button class="btn small" data-ad="edit">✎ Editar ficha</button>' +
-      '<button class="btn small" data-ad="release">+ Registrar versión</button>' +
-      '<button class="btn small" data-ad="note">+ Nota interna</button>' +
-      (a.status !== 'pausada' && a.status !== 'retirada' ? '<button class="btn small" data-ad="pause">⏸ Pausar</button>' : '') +
-      (a.status === 'pausada' ? '<button class="btn small" data-ad="reactivate" style="color:var(--prod)">▶ Reactivar</button>' : '') +
-      '<button class="btn small danger" data-ad="delete" style="margin-left:auto">🗑 Eliminar</button></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-top:16px;align-items:stretch">' +
+      '<button class="btn small" data-ad="admin" style="background:var(--acc);border-color:var(--acc);color:#10130e;font-weight:800;justify-content:center">◈ ADMINISTRACIÓN</button>' +
+      '<button class="btn small" data-ad="edit" style="justify-content:center">✎ Editar ficha</button>' +
+      '<button class="btn small" data-ad="release" style="justify-content:center">+ Registrar versión</button>' +
+      '<button class="btn small" data-ad="note" style="justify-content:center">+ Nota interna</button>' +
+      (a.status !== 'pausada' && a.status !== 'retirada' ? '<button class="btn small" data-ad="pause" style="justify-content:center">⏸ Pausar</button>' : '') +
+      (a.status === 'pausada' ? '<button class="btn small" data-ad="reactivate" style="color:var(--prod);justify-content:center">▶ Reactivar</button>' : '') +
+      '<button class="btn small danger" data-ad="delete" style="justify-content:center">🗑 Eliminar</button></div>' +
       '<div class="sec"><h4>Versiones</h4>' + rels + '</div>' +
       '<div class="sec"><h4>Notas internas</h4>' + notes + '</div>';
   }
@@ -1188,6 +1188,49 @@ async function appiConnect(f) {
     el.querySelector('[data-aclose]').addEventListener('click', function () { el.remove(); if (slug === 'appi') appiLogout(); });
     if (slug === 'appi') openAppi();
   }
+
+  /* ---------- DETECCIÓN AUTOMÁTICA DE VERSIONES ----------
+     Cada app declara su ficha popups.app.json en su repo (estándar POPUPS).
+     Al abrir la consola (y al entrar a Apps) se comparan las versiones y,
+     si hay una nueva, se registra sola en Versiones. ---------- */
+  async function autoDetectVersions(force) {
+    try {
+      var now = Date.now();
+      try { var last = +(localStorage.getItem('popups_autov_last') || 0); if (!force && now - last < 600000) return; } catch (e) {}
+      try { localStorage.setItem('popups_autov_last', String(now)); } catch (e) {}
+      var list = await api('/api/apps');
+      var changed = [];
+      for (var i = 0; i < list.apps.length; i++) {
+        var a = list.apps[i];
+        var repo = a.urls && a.urls.repo;
+        if (!repo) continue;
+        var m = String(repo).match(/github\.com[\/:]([^\/]+)\/([^\/\s#]+)/);
+        if (!m) continue;
+        var owner = m[1], name = m[2].replace(/\.git$/, '');
+        var man = null;
+        try { var r = await fetch('https://raw.githubusercontent.com/' + owner + '/' + name + '/main/popups.app.json', { cache: 'no-store' }); if (r.ok) man = await r.json(); } catch (e) {}
+        if (!man) { try { var r2 = await fetch('https://raw.githubusercontent.com/' + owner + '/' + name + '/master/popups.app.json', { cache: 'no-store' }); if (r2.ok) man = await r2.json(); } catch (e) {} }
+        if (!man || !man.version) continue;
+        if (String(man.version).trim() !== String(a.version || '').trim()) {
+          var hoy = new Date().toISOString().slice(0, 10);
+          var ver = String(man.version).trim();
+          try {
+            await api('/api/apps/' + a.slug, { method: 'PATCH', body: { version: ver, versionDate: man.versionDate || hoy } });
+            await api('/api/apps/' + a.slug + '/releases', { method: 'POST', body: { version: ver, summary: 'Versión detectada automáticamente desde el estándar (popups.app.json del repo).', actor: 'sistema' } });
+            changed.push(a.name + ' v' + ver);
+          } catch (e) {}
+        }
+      }
+      if (changed.length) {
+        toast('⚡ ' + changed.join(', ') + ' detectada(s) automáticamente');
+        await loadAll();
+        if (curApp) { try { var dd = await api('/api/apps/' + curApp.slug); curApp = dd.app; renderDetail(); } catch (e) {} }
+      }
+    } catch (e) {}
+  }
+  setTimeout(function () { try { if (state && state.token) autoDetectVersions(false).catch(function () {}); } catch (e) {} }, 4000);
+  var _abtn = document.querySelector('nav.tabs [data-tab="apps"]');
+  if (_abtn) _abtn.addEventListener('click', function () { try { autoDetectVersions(false).catch(function () {}); } catch (e) {} });
 })();
 
 </script>
