@@ -36,3 +36,9 @@
 
 ## v0.6.0 · 2026-09-07
 - **Retorno a la versión original del panel POPUPS** (catálogo puro: tarjetas, fichas, equipo y actividad). Se retiran los experimentos de paneles insertados en tarjetas y en la barra superior; quedan conservados en el historial de git para retomarlos cuando definamos el diseño correcto juntos.
+
+## v0.7.0 · 2026-09-07
+- **Botón "◈ ADMINISTRACIÓN" en la ficha de cada app**: abre el panel de manejo de esa app desde la consola.
+  - APPI: panel nativo de administración real (Resumen · Solicitudes · Cuentas · Ingresos · Configuración) conectado al backend de APPI (la clave no se guarda; sesión con renovación automática).
+  - Apps con URL de admin definida: su panel se abre adentro (con opción "Abrir en pestaña").
+  - Apps sin panel aún: aviso claro para configurarlo en "Editar ficha".
