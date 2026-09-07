@@ -110,3 +110,8 @@
 
 ## v0.16.0 · 2026-09-07
 - **Medidor de la nube en el panel**: barra de uso de la base de Supabase (límite 500 MB del plan Free) con total de tiendas y productos en la nube. Se pone **verde → ámbar → rojo** a medida que se acerca al límite, para saber cuándo conviene pasar a plan pago. (Requiere correr el esquema SQL actualizado una vez.)
+
+
+## v0.17.0 · 2026-09-07
+- **Botón "📖 Guía (PDF)" en cada tienda cloud**: descarga el PDF de bienvenida listo para entregar al dueño, con SUS datos reales (link, clave de acceso, plan y vencimiento) e instrucciones ilustradas con capturas de la web. Ideal para mandar por WhatsApp al vender o para reenviar cuando lo pida.
+- La guía se genera en el momento con jsPDF (se carga solo si hace falta) y las capturas viven en la carpeta `guia/` de este repo.
