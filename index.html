@@ -1047,6 +1047,7 @@ function clPlanSelect(c) {
         '<td><div class="cl-acts">' +
         (c.cloud && c.key ? '<button class="btn small" data-ca="guia" data-cid="' + esc(c.id) + '">📖 Guía (PDF)</button>' : '') +
         (c.cloud && c.key ? '<button class="btn small" data-ca="key" data-cid="' + esc(c.id) + '">🔑 Clave</button>' : '') +
+        (c.cloud ? '<button class="btn small" data-ca="blanquear" data-cid="' + esc(c.id) + '" style="color:#e3b36a">♻ Blanquear clave</button>' : '') +
         '<button class="btn small" data-ca="pay" data-cid="' + esc(c.id) + '">💳 +30 días</button>' + susBtn +
         '<button class="btn small danger" data-ca="baja" data-cid="' + esc(c.id) + '">🗑 Dar de baja</button>' +
         '</div></td></tr>';
@@ -1099,10 +1100,30 @@ function clPlanSelect(c) {
         var c = null;
         for (var j = 0; j < arr.length; j++) { if (arr[j].id === cid) { c = arr[j]; break; } }
         if (!c) { toast('No se encontró la tienda.'); return; }
-if (actn === 'key') {
+        if (actn === 'key') {
           if (!c.key) { toast('Esta tienda no tiene clave guardada (se creó antes de la nube).'); return; }
           var kmsg = 'Clave de acceso del dueño @' + c.id + ' — pasásela SOLO al dueño:\n\n' + c.key + '\n\nEs la llave de su panel: con ella entra y administra su tienda.';
           try { var kk = window.prompt(kmsg, c.key); if (kk === null) return; } catch (e2) { alert(kmsg); }
+          return;
+        }
+        if (actn === 'blanquear') {
+          var nueva = 'mt-' + Math.random().toString(36).slice(2, 8) + '-' + Math.random().toString(36).slice(2, 8);
+          if (!confirm('¿Blanquear la clave de @' + c.id + '?\n\nLa clave ' + (c.key ? '"' + c.key + '" ' : '') + 'deja de servir al instante.\nEl dueño vuelve a entrar con la nueva clave.\n\nNueva clave: ' + nueva)) return;
+          clRpc('rotate_key', { id: c.id, key: nueva }).then(function (r) {
+            if (!r || r.ok !== true) {
+              clCloudOk = false;
+              toast('⚠ No se pudo blanquear la clave: ' + ((r && r.error) || 'sin conexión'));
+              return;
+            }
+            clCloudOk = true;
+            var dd = getDB();
+            var arr2 = (dd.clients && dd.clients[clCurrentSlug]) || [];
+            for (var q = 0; q < arr2.length; q++) { if (arr2[q].id === c.id) { arr2[q].key = nueva; break; } }
+            setDB(dd);
+            var kmsg2 = 'Clave blanqueada ✅\n\nNueva clave de acceso de @' + c.id + ' — mandásela al dueño por WhatsApp:\n\n' + nueva + '\n\nLa clave anterior dejó de servir.';
+            try { window.prompt(kmsg2, nueva); } catch (e3) { alert(kmsg2); }
+            refreshClientesPanel();
+          }).catch(function () { clCloudOk = false; toast('⚠ Sin conexión con la nube: la clave NO se cambió.'); });
           return;
         }
         if (actn === 'copy') {
