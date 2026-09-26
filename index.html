@@ -1047,6 +1047,7 @@ function clPlanSelect(c) {
         '<td><div class="cl-acts">' +
         (c.cloud && c.key ? '<button class="btn small" data-ca="guia" data-cid="' + esc(c.id) + '">📖 Guía (PDF)</button>' : '') +
         (c.cloud && c.key ? '<button class="btn small" data-ca="key" data-cid="' + esc(c.id) + '">🔑 Clave</button>' : '') +
+        (c.cloud && c.key ? '<button class="btn small" data-ca="wa" data-cid="' + esc(c.id) + '" style="color:#7ccb9a">📱 Enviar clave (WhatsApp)</button>' : '') +
         (c.cloud ? '<button class="btn small" data-ca="blanquear" data-cid="' + esc(c.id) + '" style="color:#e3b36a">♻ Blanquear clave</button>' : '') +
         '<button class="btn small" data-ca="pay" data-cid="' + esc(c.id) + '">💳 +30 días</button>' + susBtn +
         '<button class="btn small danger" data-ca="baja" data-cid="' + esc(c.id) + '">🗑 Dar de baja</button>' +
@@ -1104,6 +1105,17 @@ function clPlanSelect(c) {
           if (!c.key) { toast('Esta tienda no tiene clave guardada (se creó antes de la nube).'); return; }
           var kmsg = 'Clave de acceso del dueño @' + c.id + ' — pasásela SOLO al dueño:\n\n' + c.key + '\n\nEs la llave de su panel: con ella entra y administra su tienda.';
           try { var kk = window.prompt(kmsg, c.key); if (kk === null) return; } catch (e2) { alert(kmsg); }
+          return;
+        }
+        if (actn === 'wa') {
+          if (!c.key) { toast('Esta tienda no tiene clave guardada.'); return; }
+          var phRaw = String(c.contact || '').replace(/^wa\.me\/?/i, '').replace(/[^0-9+]/g, '');
+          var ph = phRaw.replace(/[^0-9]/g, '');
+          if (!ph || ph.length < 9) { toast('Falta el WhatsApp del dueño (cargalo al editar la tienda).'); return; }
+          if (/^0/.test(ph)) ph = '549' + ph.slice(1);
+          if (/^\d{10}$/.test(ph)) ph = '54' + ph;
+          var waMsg = 'Hola ' + (c.owner || c.biz || '@' + c.id) + '! Tu tienda Mi-Tienda ya está lista.\n\nCLAVE de acceso: ' + c.key + '\n\nLink: ' + clLinkOf(c) + '\n\nEntrás con esa clave desde el botón "Ingresar" de tu tienda. Guardala bien!';
+          try { window.open('https://wa.me/' + ph + '?text=' + encodeURIComponent(waMsg), '_blank'); } catch (e) { toast('No se pudo abrir WhatsApp.'); }
           return;
         }
         if (actn === 'blanquear') {

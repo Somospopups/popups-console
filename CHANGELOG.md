@@ -116,5 +116,8 @@
 - **Botón "📖 Guía (PDF)" en cada tienda cloud**: descarga el PDF de bienvenida listo para entregar al dueño, con SUS datos reales (link, clave de acceso, plan y vencimiento) e instrucciones ilustradas con capturas de la web. Ideal para mandar por WhatsApp al vender o para reenviar cuando lo pida.
 - La guía se genera en el momento con jsPDF (se carga solo si hace falta) y las capturas viven en la carpeta `guia/` de este repo.
 
+## v0.18.1 · 2026-09-26
+- **Botón "📱 Enviar clave (WhatsApp)" en cada tienda cloud**: arma el mensaje con el link y la clave de acceso del dueño y lo abre en WhatsApp (`wa.me/<número del contacto>`) listo para enviar. Un solo toque y la clave llega por el chat del cliente, sin copiar y pegar.
+
 ## v0.18.0 · 2026-09-26
 - **Botón "♻ Blanquear clave" en cada tienda cloud**: rota la clave de acceso del dueño en la nube (`api_admin → rotate_key`) cuando la olvida. La clave anterior deja de servir al instante, la nueva se guarda en la consola y se muestra al equipo para pasársela al cliente (pendiente de desplegar `api_key_change` para que el dueño pueda cambiarla él mismo).
